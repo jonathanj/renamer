@@ -56,11 +56,11 @@ class Stack(object):
 class Environment(object):
     AUTO_LOAD = ['common']
 
-    def __init__(self, args, safemode):
+    def __init__(self, args, safemode, verbosity):
         self.stack = Stack()
         self.plugins = {}
         self.globals = []
-        self.verbose = False
+        self.verbosity = verbosity
         self.safemode = safemode
 
         if self.safemode:
@@ -91,7 +91,7 @@ class Environment(object):
                 continue
 
             self.execute(line)
-            if self.verbose:
+            if self.verbosity > 0:
                 print 'rn>', line
                 # XXX:
                 self.execute('stack')
@@ -178,6 +178,7 @@ def main():
     parser = optparse.OptionParser(usage='%prog [options] script_file file1 [file2 ...]')
     parser.add_option('-t', '--dry-run', dest='dryrun', action='store_true', help='Perform a dry-run')
     parser.add_option('-s', '--script', dest='script', action='store', help='Command script to execute')
+    parser.add_option('-v', action='count', dest='verbosity', help='Increase output verbosity')
     options, args = parser.parse_args()
 
     #logging.basicConfig(level=logging.DEBUG)
@@ -190,7 +191,7 @@ def main():
         return _args
 
     targets = expandArgs()
-    env = Environment(targets, safemode=options.dryrun)
+    env = Environment(targets, safemode=options.dryrun, verbosity=options.verbosity)
     if options.script is not None:
         # Run the script as many times as there are targets
         # XXX: this is a bit of hack
