@@ -91,7 +91,7 @@ class Environment(object):
                 continue
 
             self.execute(line)
-            if self.verbosity > 0:
+            if self.verbosity >= 2:
                 print 'rn>', line
                 # XXX:
                 self.execute('stack')
@@ -181,8 +181,14 @@ def main():
     parser.add_option('-v', action='count', dest='verbosity', help='Increase output verbosity')
     options, args = parser.parse_args()
 
-    #logging.basicConfig(level=logging.DEBUG)
-    logging.basicConfig(level=logging.WARNING)
+    verbosity = options.verbosity
+
+    if verbosity == 0:
+        logging.basicConfig(level=logging.WARNING)
+    elif verbosity == 1:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.DEBUG)
 
     def expandArgs():
         _args = []
@@ -191,7 +197,7 @@ def main():
         return _args
 
     targets = expandArgs()
-    env = Environment(targets, safemode=options.dryrun, verbosity=options.verbosity)
+    env = Environment(targets, safemode=options.dryrun, verbosity=verbosity)
     if options.script is not None:
         # Run the script as many times as there are targets
         # XXX: this is a bit of hack
