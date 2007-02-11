@@ -178,7 +178,7 @@ def main():
     parser = optparse.OptionParser(usage='%prog [options] script_file file1 [file2 ...]')
     parser.add_option('-t', '--dry-run', dest='dryrun', action='store_true', help='Perform a dry-run')
     parser.add_option('-s', '--script', dest='script', action='store', help='Command script to execute')
-    parser.add_option('-v', action='count', dest='verbosity', help='Increase output verbosity')
+    parser.add_option('-v', action='count', dest='verbosity', default=0, help='Increase output verbosity')
     options, args = parser.parse_args()
 
     verbosity = options.verbosity
