@@ -101,7 +101,7 @@ class Environment(object):
             return
 
         try:
-            mod = __import__('renamer.plugins.' + pluginName, fromlist=[pluginName])
+            mod = __import__('renamer.plugins.' + pluginName, globals(), locals(), [pluginName])
         except ImportError, e:
             raise PluginError('Unable to load plugin %r: %s' % (pluginName, e))
 
