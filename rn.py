@@ -189,9 +189,13 @@ def main():
             _args.extend(glob.glob(arg))
         return _args
 
-    env = Environment(expandArgs(), safemode=options.dryrun)
+    targets = expandArgs()
+    env = Environment(targets, safemode=options.dryrun)
     if options.script is not None:
-        env.runScript(options.script)
+        # Run the script as many times as there are targets
+        # XXX: this is a bit of hack
+        for _ in targets:
+            env.runScript(options.script)
     else:
         while True:
             env.execute(raw_input('rn> '))
