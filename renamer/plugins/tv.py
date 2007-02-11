@@ -68,7 +68,8 @@ def epguides(env, key, urlSegment):
 
 @plugins.command
 def tvrage(env, key, showName):
-    url = 'http://www.tvrage.com/quickinfo.php?show=%s&ep=%s' % (showName, key)
+    qs = urllib.urlencode([('show', showName), ('ep', key)])
+    url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
 
     data = {}
 
