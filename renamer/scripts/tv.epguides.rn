@@ -1,0 +1,23 @@
+load tv
+dup
+tv.find_tv_parts
+pushlist
+# series_name, season, ep, ext
+split .
+join " "
+camel_case_into_sentence
+title
+var series_name
+int
+var season
+int
+var ep
+lower
+var ext
+format "%(season)s-%(ep)02s"
+format "%(series_name)s"
+tv.epguides
+var name
+# NOTE: change this to change the filename format
+format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
+rename
