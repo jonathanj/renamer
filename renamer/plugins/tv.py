@@ -17,6 +17,7 @@ def find_tv_parts(env, src):
         re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)$'), # 24.s6e4.dvdrip.xvid-aerial.avi
         re.compile(r'(?P<series_name>.*?)\.-\.(?P<season>\d)x(?P<ep>\d{2}).*\.(?P<ext>.*?)$'), # harsh.realm.-.1x01.-.pilot.avi
         re.compile(r'(?P<series_name>.*?)_[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)$'), # DayBreak_S01E09.avi
+        re.compile(r'(?P<series_name>.*?) - (?P<season>\d+)[xX](?P<ep>\d+) - .*\.(?P<ext>.*?)$'), # Xena - 2x05 - Return of Callisto.avi
     ]
 
     for pattern in patterns:
