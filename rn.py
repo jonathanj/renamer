@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import shlex
 import logging
@@ -179,6 +180,7 @@ def main():
     parser.add_option('-t', '--dry-run', dest='dryrun', action='store_true', help='Perform a dry-run')
     parser.add_option('-s', '--script', dest='script', action='store', help='Command script to execute')
     parser.add_option('-v', action='count', dest='verbosity', default=0, help='Increase output verbosity')
+    parser.add_option('-g', '--glob', dest='glob', action='store_true', help='Expand filenames as UNIX-style globs')
     options, args = parser.parse_args()
 
     verbosity = options.verbosity
@@ -191,12 +193,33 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
 
     def expandArgs():
+        return args
+
+    def expandArgsWin32():
+        _args = []
+        for arg in args:
+            if not os.path.exists(arg):
+                globbed = glob.glob(arg)
+                if globbed:
+                    _args.extend(globbed)
+                    continue
+
+            _args.append(arg)
+        return _args
+
+    def expandArgsGlob():
         _args = []
         for arg in args:
             _args.extend(glob.glob(arg))
         return _args
 
-    targets = expandArgs()
+    if options.glob:
+        targets = expandArgsGlob()
+    elif sys.platform == 'win32':
+        targets = expandArgsWin32()
+    else:
+        targets = expandArgs()
+
     env = Environment(targets, safemode=options.dryrun, verbosity=verbosity)
     if options.script is not None:
         # Run the script as many times as there are targets
