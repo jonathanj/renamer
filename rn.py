@@ -107,10 +107,9 @@ class Environment(object):
             raise PluginError('Unable to load plugin %r: %s' % (pluginName, e))
 
         commands = {}
-        for attrName in dir(mod):
-            attr = getattr(mod, attrName)
-            if hasattr(attr, 'pluginCommand') and attr.pluginCommand:
-                commands[attrName] = attr
+        for key, value in vars(mod).iteritems():
+            if hasattr(value, 'pluginCommand') and value.pluginCommand:
+                commands[key] = value
 
         self.plugins[pluginName] = commands
 
