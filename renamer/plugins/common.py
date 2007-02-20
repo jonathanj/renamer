@@ -4,6 +4,8 @@ import sys
 
 from renamer import plugins
 
+builtin_int = int
+
 @plugins.command
 def push(env, value):
     return value
@@ -23,16 +25,32 @@ def pushlist(env):
         env.stack.push(e)
 
 @plugins.command
+def duplistn(env, l, index):
+    index = builtin_int(index)
+    env.stack.push(l)
+    return l[index]
+
+@plugins.command
 def split(env, s, delim):
     return s.split(delim)
 
 @plugins.command
 def splitn(env, s, delim, n):
+    n = builtin_int(n)
     return s.split(delim, n)
+
+@plugins.command
+def rsplitn(env, s, delim, n):
+    n = builtin_int(n)
+    return s.rsplit(delim, n)
 
 @plugins.command
 def join(env, l, delim):
     return delim.join(l)
+
+@plugins.command
+def strip(env, s, c):
+    return s.strip(c)
 
 @plugins.command
 def title(env, s):
@@ -41,8 +59,6 @@ def title(env, s):
 @plugins.command
 def lower(env, s):
     return s.lower()
-
-builtin_int = int
 
 @plugins.command
 def int(env, s):

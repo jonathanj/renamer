@@ -182,7 +182,7 @@ def main():
     parser.add_option('-g', '--glob', dest='glob', action='store_true', help='Expand filenames as UNIX-style globs')
     options, args = parser.parse_args()
 
-    if len(args) < 1:
+    if options.script and len(args) < 1:
         parser.error('too few arguments')
 
     verbosity = options.verbosity
