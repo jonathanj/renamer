@@ -7,22 +7,22 @@ from renamer import plugins
 @plugins.command
 def find_tv_parts(env, src):
     patterns = [
-        re.compile(r'(?P<series_name>.*?) - [sS](?P<season>\d+)[eE](?P<ep>\d+) - .*\.(?P<ext>.*?)$'), # Profiler - S01E01 - Insight.avi
-        re.compile(r'(?P<series_name>.*?) \[(?P<season>\d+)x(?P<ep>\d{2})\] - .*\.(?P<ext>.*?)$'), # Heroes [1x01] - Genesis.avi
-        re.compile(r'(?P<series_name>.*?) [sS](?P<season>\d+)[eE](?P<ep>\d{2}) .*\.(?P<ext>.*?)$'), # Heroes S01E10 HDTV XviD.avi
-        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>.*?)$'), # heroes.108.hdtv-lol.avi
-        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2})\.(?P<ext>.*?)$'), # arrested.development.302.avi
-        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d{2}).*\.(?P<ext>.*?)$'), # Heroes.S01E11.HDTV.XviD-K4RM4.avi
-        re.compile(r'(?P<series_name>.*?) - (?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>.*?)$'), # How I Met Your Mother - 101 - Pilot.avi
-        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)$'), # 24.s6e4.dvdrip.xvid-aerial.avi
-        re.compile(r'(?P<series_name>.*?)\.-\.(?P<season>\d)x(?P<ep>\d{2}).*\.(?P<ext>.*?)$'), # harsh.realm.-.1x01.-.pilot.avi
-        re.compile(r'(?P<series_name>.*?)_[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)$'), # DayBreak_S01E09.avi
-        re.compile(r'(?P<series_name>.*?) - (?P<season>\d+)[xX](?P<ep>\d+) - .*\.(?P<ext>.*?)$'), # Xena - 2x05 - Return of Callisto.avi
-        re.compile(r'(?P<series_name>.*?)_(?P<season>\d+)[xX](?P<ep>\d+)_.*\.(?P<ext>.*?)$'), # Xena_4x02_Adventures In The Sin Trade - Part 2.avi
+        re.compile(r'(?P<series_name>.*?) - [sS](?P<season>\d+)[eE](?P<ep>\d+) - .*\.(?P<ext>.*?)'), # Profiler - S01E01 - Insight.avi
+        re.compile(r'(?P<series_name>.*?) \[(?P<season>\d+)x(?P<ep>\d{2})\] - .*\.(?P<ext>.*?)'), # Heroes [1x01] - Genesis.avi
+        re.compile(r'(?P<series_name>.*?) [sS](?P<season>\d+)[eE](?P<ep>\d{2}) .*\.(?P<ext>.*?)'), # Heroes S01E10 HDTV XviD.avi
+        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>.*?)'), # heroes.108.hdtv-lol.avi
+        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2})\.(?P<ext>.*?)'), # arrested.development.302.avi
+        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d{2}).*\.(?P<ext>.*?)'), # Heroes.S01E11.HDTV.XviD-K4RM4.avi
+        re.compile(r'(?P<series_name>.*?) - (?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>.*?)'), # How I Met Your Mother - 101 - Pilot.avi
+        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)'), # 24.s6e4.dvdrip.xvid-aerial.avi
+        re.compile(r'(?P<series_name>.*?)\.-\.(?P<season>\d)x(?P<ep>\d{2}).*\.(?P<ext>.*?)'), # harsh.realm.-.1x01.-.pilot.avi
+        re.compile(r'(?P<series_name>.*?)_[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>.*?)'), # DayBreak_S01E09.avi
+        re.compile(r'(?P<series_name>.*?) - (?P<season>\d+)[xX](?P<ep>\d+) - .*\.(?P<ext>.*?)'), # Xena - 2x05 - Return of Callisto.avi
+        re.compile(r'(?P<series_name>.*?)_(?P<season>\d+)[xX](?P<ep>\d+)_.*\.(?P<ext>.*?)'), # Xena_4x02_Adventures In The Sin Trade - Part 2.avi
     ]
 
     for pattern in patterns:
-        m = pattern.search(src)
+        m = pattern.match(src)
         if m is not None:
             d = m.groupdict()
             return d['series_name'], d['season'], d['ep'], d['ext']
