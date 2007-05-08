@@ -79,17 +79,13 @@ def format(env, fmt):
 @plugins.command
 def rename(env, src, dst):
     def _makeSaneFilename(fn):
-        fn.replace('*', ''
-         ).replace('<', ''
-         ).replace('>', '')
+        fn = re.sub(r'[*<>]', '', fn)
 
         if sys.platform == 'win32':
-            fn = fn.replace('?', ''
-                 ).replace('\\', ''
-                 ).replace('/', ' -'
-                 ).replace(':', ' -'
-                 ).replace('|', ''
-                 ).replace('"', '')
+            fn = re.sub(r'[?\\|"]', '', fn)
+            # XXX: special time hax eg. 12:00 -> 12.00
+            fn = re.sub(r'(\d):(\d)', r'\1.\2', fn)
+            fn = re.sub(r'[/:]', ' -', fn)
 
         return fn
 
