@@ -4,6 +4,8 @@ import glob
 import shlex
 import logging
 import optparse
+import time
+import stat
 
 from renamer.plugins import PluginError
 
@@ -180,6 +182,8 @@ def main():
     parser.add_option('-s', '--script', dest='script', action='store', help='Command script to execute')
     parser.add_option('-v', action='count', dest='verbosity', default=0, help='Increase output verbosity')
     parser.add_option('-g', '--glob', dest='glob', action='store_true', help='Expand filenames as UNIX-style globs')
+    parser.add_option('-S', '--sort', dest='sort', action='store', help='Sort filenames by criteria: created, name, size')
+    parser.add_option('-R', '--reverse', dest='reverse', action='store_true', help='Reverse filename order')
     options, args = parser.parse_args()
 
     if options.script and len(args) < 1:
@@ -221,6 +225,30 @@ def main():
         targets = expandArgsWin32()
     else:
         targets = expandArgs()
+
+    def _sortCreated(fn):
+        try:
+            return time.localtime(os.stat(fn)[stat.ST_CTIME])
+        except OSerror:
+            return -1
+
+    def _sortSize(fn):
+        try:
+            return os.stat(fn)[stat.ST_SIZE]
+        except OSerror:
+            return -1
+
+    sortMethods = {
+        'created': _sortCreated,
+        'size': _sortSize,
+        'name': lambda fn: fn,
+    }
+
+    if options.sort:
+        targets.sort(key=sortMethods[options.sort])
+
+    if options.reverse:
+        targets.reverse()
 
     env = Environment(targets, safemode=options.dryrun, verbosity=verbosity)
     if options.script is not None:
