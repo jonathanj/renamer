@@ -8,6 +8,12 @@ builtin_int = int
 
 @plugins.command
 def push(env, value):
+    if value.startswith('$'):
+        if value.startswith('$$'):
+            return value[1:]
+        else:
+            global _vars
+            return _vars[value[1:]]
     return value
 
 @plugins.command
