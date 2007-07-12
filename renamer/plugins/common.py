@@ -126,3 +126,11 @@ def help(env, name):
         print fn.__doc__
     else:
         print 'No help available.'
+
+@plugins.command
+def inc(env, value):
+    return value + 1
+
+@plugins.command
+def dec(env, value):
+    return value - 1
