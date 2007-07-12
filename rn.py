@@ -229,8 +229,11 @@ def main():
         for _ in targets:
             env.runScript(options.script)
     else:
-        while True:
-            env.execute(raw_input('rn> '))
+        try:
+            while True:
+                env.execute(raw_input('rn> '))
+        except EOFError:
+            print
 
 if __name__ == '__main__':
     main()
