@@ -6,8 +6,7 @@ from renamer import plugins
 
 builtin_int = int
 
-@plugins.command
-def push(env, value):
+def _push(value):
     if value.startswith('$'):
         if value.startswith('$$'):
             return value[1:]
@@ -15,6 +14,17 @@ def push(env, value):
             global _vars
             return _vars[value[1:]]
     return value
+
+@plugins.command
+def push(env, value):
+    return _push(value)
+
+@plugins.command
+def pushdefault(env, value, default):
+    try:
+        return _push(value)
+    except KeyError:
+        return default
 
 @plugins.command
 def pop(env, dummy):
@@ -72,10 +82,13 @@ def int(env, s):
 
 _vars = {}
 
-@plugins.command
-def var(env, value, name):
+def _setvar(name, value):
     global _vars
     _vars[name] = value
+
+@plugins.command
+def var(env, value, name):
+    _setvar(name, value)
 
 @plugins.command
 def format(env, fmt):
@@ -134,3 +147,11 @@ def inc(env, value):
 @plugins.command
 def dec(env, value):
     return value - 1
+
+@plugins.command
+def regex(env, s, r):
+    m = re.match(r, s)
+    if m is not None:
+        for key, value in m.groupdict().iteritems():
+            _setvar(key, value)
+        return list(m.groups())
