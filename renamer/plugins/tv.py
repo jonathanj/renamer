@@ -9,7 +9,7 @@ def find_tv_parts(env, src):
     patterns = [
         re.compile(r'(?P<series_name>.*?) - [sS](?P<season>\d+)[eE](?P<ep>\d+) - .*\.(?P<ext>[^.]*)'), # Profiler - S01E01 - Insight.avi
         re.compile(r'(?P<series_name>.*?) \[(?P<season>\d+)x(?P<ep>\d{2})\] - .*\.(?P<ext>[^.]*)'), # Heroes [1x01] - Genesis.avi
-        re.compile(r'(?P<series_name>.*?) [sS](?P<season>\d+)[eE](?P<ep>\d{2}) .*\.(?P<ext>[^.*])'), # Heroes S01E10 HDTV XviD.avi
+        re.compile(r'(?P<series_name>.*?) [sS](?P<season>\d+)[eE](?P<ep>\d{2}) .*\.(?P<ext>[^.]*)'), # Heroes S01E10 HDTV XviD.avi
         re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # heroes.108.hdtv-lol.avi
         re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2})\.(?P<ext>[^.]*)'), # arrested.development.302.avi
         re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # Heroes.S01E11.HDTV.XviD-K4RM4.avi
