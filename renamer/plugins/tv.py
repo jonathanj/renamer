@@ -99,4 +99,9 @@ def tvrage(env, key, showName):
         key, value = line.strip().split('@', 1)
         data[key] = value.split('^')
 
-    return data['Episode Info'][1]
+    # Hopefully remove year information at the end of a series name.
+    showName = re.sub(' (\(\d{4}\))$', '', data['Show Name'][0])
+    season, epNumber = map(int, data['Episode Info'][0].split('x'))
+    epName = data['Episode Info'][1]
+
+    return showName, season, epNumber, epName

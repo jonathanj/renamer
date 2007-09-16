@@ -15,6 +15,11 @@ var ext
 format "%(season)sx%(ep)02d"
 format "%(series_name)s"
 tv.tvrage
+pushlist
+# series_name, season, ep, name
+var series_name
+var season
+var ep
 var name
 # NOTE: change this to change the filename format
 format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
