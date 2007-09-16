@@ -1,34 +1,53 @@
 import re
 import urllib
+from string import printable
+
 from BeautifulSoup import BeautifulSoup
+
+from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
+    FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringStart, StringEnd)
 
 from renamer import plugins
 
+def L(value):
+    return Literal(value).suppress()
+
+number = Word(nums)
+digit = Word(nums, exact=1)
+
+separator = Literal('_-_') | Literal(' - ') | Literal('.-.') | Literal('-') | Literal('.') | Literal('_') | Literal(' ')
+separator = separator.suppress().leaveWhitespace()
+
+season = number.setResultsName('season')
+short_season = digit.setResultsName('season')
+epnum = number.setResultsName('ep')
+exact_epnum = Word(nums, exact=2).setResultsName('ep')
+episode = ( season + L('x') + epnum
+          | L('[') + season + L('x') + epnum + L(']')
+          | L('S') + season + L('E') + epnum
+          | L('s') + season + L('e') + epnum
+          | short_season + exact_epnum
+          )
+
+series_word = Word(alphanums)
+series = ZeroOrMore(series_word + separator + NotAny(episode + separator)) + series_word
+series = Combine(series, joinString=' ').setResultsName('series_name')
+
+extension = '.' + Word(alphanums).setResultsName('ext') + StringEnd()
+
+title = SkipTo(FollowedBy(extension))
+
+filename = series + separator + episode + Optional(separator + title) + extension
+
+
 @plugins.command
 def find_tv_parts(env, src):
-    patterns = [
-        re.compile(r'(?P<series_name>.*?) - [sS](?P<season>\d+)[eE](?P<ep>\d+) - .*\.(?P<ext>[^.]*)'), # Profiler - S01E01 - Insight.avi
-        re.compile(r'(?P<series_name>.*?) \[(?P<season>\d+)x(?P<ep>\d{2})\] - .*\.(?P<ext>[^.]*)'), # Heroes [1x01] - Genesis.avi
-        re.compile(r'(?P<series_name>.*?) [sS](?P<season>\d+)[eE](?P<ep>\d{2}) .*\.(?P<ext>[^.]*)'), # Heroes S01E10 HDTV XviD.avi
-        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # heroes.108.hdtv-lol.avi
-        re.compile(r'(?P<series_name>.*?)\.(?P<season>\d)(?P<ep>\d{2})\.(?P<ext>[^.]*)'), # arrested.development.302.avi
-        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # Heroes.S01E11.HDTV.XviD-K4RM4.avi
-        re.compile(r'(?P<series_name>.*?) - (?P<season>\d)(?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # How I Met Your Mother - 101 - Pilot.avi
-        re.compile(r'(?P<series_name>.*?)\.[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>[^.]*)'), # 24.s6e4.dvdrip.xvid-aerial.avi
-        re.compile(r'(?P<series_name>.*?)\.-\.(?P<season>\d)x(?P<ep>\d{2}).*\.(?P<ext>[^.]*)'), # harsh.realm.-.1x01.-.pilot.avi
-        re.compile(r'(?P<series_name>.*?)_[sS](?P<season>\d+)[eE](?P<ep>\d+).*\.(?P<ext>[^.]*)'), # DayBreak_S01E09.avi
-        re.compile(r'(?P<series_name>.*?) - (?P<season>\d+)[xX](?P<ep>\d+) - .*\.(?P<ext>[^.]*)'), # Xena - 2x05 - Return of Callisto.avi
-        re.compile(r'(?P<series_name>.*?)_-_(?P<season>\d+)[xX](?P<ep>\d+)_.*\.(?P<ext>[^.]*)'), # Sliders_-_4x22_Revelations_(divx).avi
-        re.compile(r'(?P<series_name>.*?)_(?P<season>\d+)[xX](?P<ep>\d+)_.*\.(?P<ext>[^.]*)'), # Xena_4x02_Adventures In The Sin Trade - Part 2.avi
-    ]
-
-    for pattern in patterns:
-        m = pattern.match(src)
-        if m is not None:
-            d = m.groupdict()
-            return d['series_name'], d['season'], d['ep'], d['ext']
-
-    raise plugins.PluginError('No patterns could be found in %r' % (src))
+    try:
+        parse = filename.parseString(src)
+    except ParseException, e:
+        raise plugins.PluginError('No patterns could be found in %r (%r)' % (src, e))
+    else:
+        return parse.series_name, parse.season, parse.ep, parse.ext
 
 _epg_cache = {}
 
