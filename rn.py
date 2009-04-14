@@ -59,12 +59,13 @@ class Stack(object):
 class Environment(object):
     AUTO_LOAD = ['common']
 
-    def __init__(self, args, safemode, verbosity):
+    def __init__(self, args, safemode, movemode, verbosity):
         self.stack = Stack()
         self.plugins = {}
         self.globals = []
         self.verbosity = verbosity
         self.safemode = safemode
+        self.movemode = movemode
 
         if self.safemode:
             logging.info('Safemode enabled.')
@@ -179,6 +180,7 @@ class Environment(object):
 def main():
     parser = optparse.OptionParser(usage='%prog [options] script_file file1 [file2 ...]')
     parser.add_option('-t', '--dry-run', dest='dryrun', action='store_true', help='Perform a dry-run')
+    parser.add_option('-m', '--move', dest='move', action='store_true', help='Move files')
     parser.add_option('-s', '--script', dest='script', action='store', help='Command script to execute')
     parser.add_option('-v', action='count', dest='verbosity', default=0, help='Increase output verbosity')
     parser.add_option('-g', '--glob', dest='glob', action='store_true', help='Expand filenames as UNIX-style globs')
@@ -250,7 +252,7 @@ def main():
     if options.reverse:
         targets.reverse()
 
-    env = Environment(targets, safemode=options.dryrun, verbosity=verbosity)
+    env = Environment(targets, safemode=options.dryrun, movemode=options.move, verbosity=verbosity)
     if options.script is not None:
         # Run the script as many times as there are targets
         # XXX: this is a bit of hack

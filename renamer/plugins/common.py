@@ -110,11 +110,30 @@ def rename(env, src, dst):
 
     dst = _makeSaneFilename(dst)
 
-    print '%s ->\n  %s' % (src, dst)
-    if env.safemode:
-        return
+    print 'Rename: %s ->\n  %s' % (src, dst)
+    if not env.safemode:
+        os.rename(src, dst)
 
-    os.rename(src, dst)
+    return dst
+
+
+@plugins.command
+def move(env, src, dstDir):
+    dstPath = os.path.join(dstDir, src)
+    if env.movemode:
+        print 'Move: %s ->\n %s' % (src, dstPath)
+        if not env.safemode:
+            if not os.path.exists(dstDir):
+                os.makedirs(dstDir)
+            os.rename(src, dstPath)
+
+    return dstPath
+
+
+@plugins.command
+def envvar(env, varname):
+    return os.environ[varname]
+
 
 @plugins.command
 def load(env, name):
