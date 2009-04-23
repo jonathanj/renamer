@@ -6,6 +6,7 @@ from twisted.plugin import IPlugin
 
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
+from renamer.util import Replacer
 
 
 class Common(Plugin):
