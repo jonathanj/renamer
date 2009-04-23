@@ -1,6 +1,7 @@
+load os
 load tv
 dup
-tv.find_tv_parts
+tv.find_parts
 pushlist
 # series_name, season, ep, ext
 camel_case_into_sentence
@@ -23,9 +24,9 @@ var ep
 var name
 # NOTE: change this to change the filename format
 format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
-rename
+os.rename
 envvar MEDIA_PATH
 var media_path
 format "%(media_path)s/%(series_name)s/Season %(season)d"
-move
+os.move
 pop

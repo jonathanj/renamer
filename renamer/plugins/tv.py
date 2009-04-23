@@ -1,107 +1,84 @@
-import re
-import urllib
-from string import printable
-
+import re, urllib
 from BeautifulSoup import BeautifulSoup
+
+from zope.interface import classProvides
+
+from twisted.plugin import IPlugin
+
+from renamer.irenamer import IRenamerPlugin
+from renamer.plugin import command
 
 from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
     FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringStart, StringEnd)
 
-from renamer import plugins
-
-def L(value):
-    return Literal(value).suppress()
-
-number = Word(nums)
-digit = Word(nums, exact=1)
-
-separator = Literal('_-_') | Literal(' - ') | Literal('.-.') | Literal('-') | Literal('.') | Literal('_') | Literal(' ')
-separator = separator.suppress().leaveWhitespace()
-
-season = number.setResultsName('season')
-short_season = digit.setResultsName('season')
-epnum = number.setResultsName('ep')
-exact_epnum = Word(nums, exact=2).setResultsName('ep')
-episode = ( season + L('x') + epnum
-          | L('[') + season + L('x') + epnum + L(']')
-          | L('S') + season + L('E') + epnum
-          | L('s') + season + L('e') + epnum
-          | short_season + exact_epnum
-          )
-
-series_word = Word(alphanums)
-series = ZeroOrMore(series_word + separator + NotAny(episode + separator)) + series_word
-series = Combine(series, joinString=' ').setResultsName('series_name')
-
-extension = '.' + Word(alphanums).setResultsName('ext') + StringEnd()
-
-title = SkipTo(FollowedBy(extension))
-
-filename = series + separator + episode + Optional(separator + title) + extension
+from renamer.errors import PluginError
 
 
-@plugins.command
-def find_tv_parts(env, src):
-    try:
-        parse = filename.parseString(src)
-    except ParseException, e:
-        raise plugins.PluginError('No patterns could be found in %r (%r)' % (src, e))
-    else:
-        return parse.series_name, parse.season, parse.ep, parse.ext
+class TV(object):
+    classProvides(IPlugin, IRenamerPlugin)
 
-_epg_cache = {}
+    name = 'tv'
 
-@plugins.command
-def epguides(env, key, urlSegment):
-    URL = 'http://epguides.com/'
-    url = URL + urlSegment.replace(' ', '')
+    def __init__(self, env):
+        super(TV, self).__init__()
+        self.env = env
+        self.filename = self._createParser()
 
-    def gatherKeys(url):
-        epKeyExpr = re.compile(r'\s+(?:\d+\.)?\s+(?P<key>[\dSP]-(?:(?: \d)|(?:\d{2})))(?:\s+)?\d+')
-        soup = BeautifulSoup(urllib.urlopen(url))
-        keys = {}
-        contents = soup.pre.contents
+    def _createParser(self):
+        def L(value):
+            return Literal(value).suppress()
 
-        while contents:
-            line = contents[0]
-            if isinstance(line, basestring):
-                match = epKeyExpr.search(line)
-                if match:
-                    key = match.groupdict()['key'].lower()
-                    contents.pop(0)
-                    keys[key] = contents[0].contents[0]
+        number = Word(nums)
+        digit = Word(nums, exact=1)
 
-            contents.pop(0)
+        separator = Literal('_-_') | Literal(' - ') | Literal('.-.') | Literal('-') | Literal('.') | Literal('_') | Literal(' ')
+        separator = separator.suppress().leaveWhitespace()
 
-        return keys
+        season = number.setResultsName('season')
+        short_season = digit.setResultsName('season')
+        epnum = number.setResultsName('ep')
+        exact_epnum = Word(nums, exact=2).setResultsName('ep')
+        episode = ( season + L('x') + epnum
+                  | L('[') + season + L('x') + epnum + L(']')
+                  | L('S') + season + L('E') + epnum
+                  | L('s') + season + L('e') + epnum
+                  | short_season + exact_epnum
+                  )
 
-    keys = _epg_cache.get(url, None)
-    if keys is None:
-        keys = _epg_cache[url] = gatherKeys(url)
+        series_word = Word(alphanums)
+        series = ZeroOrMore(series_word + separator + NotAny(episode + separator)) + series_word
+        series = Combine(series, joinString=' ').setResultsName('series_name')
 
-    key = key.lower()
-    try:
-        return keys[key]
-    except KeyError:
-        if key == '1- 1':
-            return keys['p- 1']
+        extension = '.' + Word(alphanums).setResultsName('ext') + StringEnd()
+
+        title = SkipTo(FollowedBy(extension))
+
+        return series + separator + episode + Optional(separator + title) + extension
+
+    @command
+    def find_parts(self, src):
+        try:
+            parse = self.filename.parseString(src)
+        except ParseException, e:
+            raise PluginError('No patterns could be found in %r (%r)' % (src, e))
         else:
-            raise
+            return parse.series_name, parse.season, parse.ep, parse.ext
 
-@plugins.command
-def tvrage(env, key, showName):
-    qs = urllib.urlencode([('show', showName), ('ep', key)])
-    url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
+    @command
+    def tvrage(self, key, showName):
+        qs = urllib.urlencode([('show', showName), ('ep', key)])
+        url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
 
-    data = {}
+        data = {}
 
-    for line in urllib.urlopen(url):
-        key, value = line.strip().split('@', 1)
-        data[key] = value.split('^')
+        for line in urllib.urlopen(url):
+            key, value = line.strip().split('@', 1)
+            data[key] = value.split('^')
 
-    # Hopefully remove year information at the end of a series name.
-    showName = re.sub(' (\(\d{4}\))$', '', data['Show Name'][0])
-    season, epNumber = map(int, data['Episode Info'][0].split('x'))
-    epName = data['Episode Info'][1]
+        # Hopefully remove year information at the end of a series name.
+        # XXX: is that sane?
+        showName = re.sub(' (\(\d{4}\))$', '', data['Show Name'][0])
+        season, epNumber = map(int, data['Episode Info'][0].split('x'))
+        epName = data['Episode Info'][1]
 
-    return showName, season, epNumber, epName
+        return showName, season, epNumber, epName

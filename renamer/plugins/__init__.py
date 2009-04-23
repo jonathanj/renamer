@@ -1,5 +1,2 @@
-class PluginError(Exception): pass
-
-def command(fun):
-    fun.pluginCommand = True
-    return fun
+from twisted.plugin import pluginPackagePaths
+__path__.extend(pluginPackagePaths(__name__))

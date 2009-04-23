@@ -1,176 +1,191 @@
-import os
-import re
-import sys
+import os, re, sys
 
-from renamer import plugins
+from zope.interface import classProvides
 
-builtin_int = int
+from twisted.plugin import IPlugin
 
-def _push(value):
-    if value.startswith('$'):
-        if value.startswith('$$'):
-            return value[1:]
+from renamer.irenamer import IRenamerPlugin
+from renamer.plugin import command
+
+
+class Common(object):
+    classProvides(IPlugin, IRenamerPlugin)
+
+    name = None
+
+    def __init__(self, env):
+        super(Common, self).__init__()
+        self.env = env
+        self.vars = {}
+
+    @command
+    def push(self, value):
+        if value.startswith('$'):
+            if value.startswith('$$'):
+                return value[1:]
+            else:
+                return self.vars[value[1:]]
+        return value
+
+    @command
+    def pushdefault(self, value, default):
+        try:
+            return self.push(value)
+        except KeyError:
+            return default
+
+    @command
+    def pushlist(self):
+        l = self.env.stack.pop()
+        for e in reversed(l):
+            self.env.stack.push(e)
+
+    @command
+    def pop(self, dummy):
+        return None
+
+    @command
+    def dup(self):
+        return self.env.stack.peek()
+
+    @command
+    def duplistn(self, l, index):
+        index = int(index)
+        self.env.stack.push(l)
+        return l[index]
+
+    @command
+    def split(self, s, delim):
+        return s.split(delim)
+
+    @command
+    def splitn(self, s, delim, n):
+        return s.split(delim, int(n))
+
+    @command
+    def rsplitn(self, s, delim, n):
+        return s.rsplit(delim, int(n))
+
+    @command
+    def join(self, l, delim):
+        return delim.join(l)
+
+    @command
+    def strip(self, s, c):
+        return s.strip(c)
+
+    @command
+    def title(self, s):
+        return s.title()
+
+    @command
+    def lower(self, s):
+        return s.lower()
+
+    @command
+    def int(self, s):
+        return int(s)
+
+    @command
+    def load(self, name):
+        self.env.load(name)
+
+    @command
+    def stack(self):
+        print self.env.stack.prettyPrint()
+
+    @command
+    def help(self, name):
+        cmd = self.env.resolveCommand(name)
+        if cmd.__doc__:
+            print cmd.__doc__
         else:
-            global _vars
-            return _vars[value[1:]]
-    return value
+            print 'No help available.'
 
-@plugins.command
-def push(env, value):
-    return _push(value)
+    @command
+    def inc(self, value):
+        return value + 1
 
-@plugins.command
-def pushdefault(env, value, default):
-    try:
-        return _push(value)
-    except KeyError:
-        return default
+    @command
+    def dec(self, value):
+        return value - 1
 
-@plugins.command
-def pop(env, dummy):
-    return
+    # XXX: this sucks
+    @command
+    def camel_case_into_sentence(self, s):
+        """Converts a proper camel-case string (LikeThisOne) into a sentence (Like This One)."""
+        return re.sub(r'(?<![\s-])([A-Z\(])', r' \1', s).strip()
 
-@plugins.command
-def dup(env):
-    return env.stack.peek()
+    def _setvar(self, name, value):
+        self.vars[name] = value
 
-@plugins.command
-def pushlist(env):
-    l = env.stack.pop()
-    for e in reversed(l):
-        env.stack.push(e)
+    @command
+    def regex(self, s, r):
+        m = re.match(r, s)
+        if m is not None:
+            for key, value in m.groupdict().iteritems():
+                self._setvar(key, value)
+            return list(m.groups())
 
-@plugins.command
-def duplistn(env, l, index):
-    index = builtin_int(index)
-    env.stack.push(l)
-    return l[index]
+    @command
+    def var(self, value, name):
+        self._setvar(name, value)
 
-@plugins.command
-def split(env, s, delim):
-    return s.split(delim)
+    @command
+    def envvar(self, varname):
+        return os.environ[varname]
 
-@plugins.command
-def splitn(env, s, delim, n):
-    n = builtin_int(n)
-    return s.split(delim, n)
+    @command
+    def format(self, fmt):
+        return fmt % self.vars
 
-@plugins.command
-def rsplitn(env, s, delim, n):
-    n = builtin_int(n)
-    return s.rsplit(delim, n)
 
-@plugins.command
-def join(env, l, delim):
-    return delim.join(l)
+class OS(object):
+    classProvides(IPlugin, IRenamerPlugin)
 
-@plugins.command
-def strip(env, s, c):
-    return s.strip(c)
+    name = 'os'
 
-@plugins.command
-def title(env, s):
-    return s.title()
+    def __init__(self, env):
+        super(OS, self).__init__()
+        self.env = env
 
-@plugins.command
-def lower(env, s):
-    return s.lower()
+        self.replacements = list(self._makeFilenameReplacements())
 
-@plugins.command
-def int(env, s):
-    return builtin_int(s)
+    def _makeFilenameReplacements(self):
+        # XXX: should we be hardcoding this?
+        yield re.compile(r'[*<>]'), ''
 
-_vars = {}
+        fd = self.env.openUserFile('replace')
+        if fd is not None:
+            for line in fd:
+                line = line.strip()
+                if line:
+                    regex, repl = line.split('\t', 1)
+                    yield re.compile(regex), repl
 
-def _setvar(name, value):
-    global _vars
-    _vars[name] = value
-
-@plugins.command
-def var(env, value, name):
-    _setvar(name, value)
-
-@plugins.command
-def format(env, fmt):
-    global _vars
-    return fmt % _vars
-
-@plugins.command
-def rename(env, src, dst):
-    def _makeSaneFilename(fn):
-        fn = re.sub(r'[*<>]', '', fn)
-
-        if sys.platform == 'win32':
-            fn = re.sub(r'[?\\|"]', '', fn)
-            # XXX: special time hax eg. 12:00 -> 12.00
-            fn = re.sub(r'(\d):(\d)', r'\1.\2', fn)
-            fn = re.sub(r'[/:]', ' -', fn)
-
+    def _makeSaneFilename(self, fn):
+        for r, repl in self.replacements:
+            fn = r.sub(repl, fn)
         return fn
 
-    dst = _makeSaneFilename(dst)
+    @command
+    def move(self, src, dstDir):
+        dstPath = os.path.join(dstDir, src)
+        if self.env.movemode:
+            print 'Move: %s ->\n %s' % (src, dstPath)
+            if not self.env.safemode:
+                if not os.path.exists(dstDir):
+                    os.makedirs(dstDir)
+                os.rename(src, dstPath)
 
-    print 'Rename: %s ->\n  %s' % (src, dst)
-    if not env.safemode:
-        os.rename(src, dst)
+        return dstPath
 
-    return dst
+    @command
+    def rename(self, src, dst):
+        dst = self._makeSaneFilename(dst)
 
+        print 'Rename: %s ->\n  %s' % (src, dst)
+        if not self.env.safemode:
+            os.rename(src, dst)
 
-@plugins.command
-def move(env, src, dstDir):
-    dstPath = os.path.join(dstDir, src)
-    if env.movemode:
-        print 'Move: %s ->\n %s' % (src, dstPath)
-        if not env.safemode:
-            if not os.path.exists(dstDir):
-                os.makedirs(dstDir)
-            os.rename(src, dstPath)
-
-    return dstPath
-
-
-@plugins.command
-def envvar(env, varname):
-    return os.environ[varname]
-
-
-@plugins.command
-def load(env, name):
-    '''Load a plugin.'''
-    env.load(name)
-
-@plugins.command
-def camel_case_into_sentence(env, s):
-    '''Converts a proper camel-case string (LikeThisOne) into a sentence (Like This One).'''
-    return re.sub(r'(?<![\s-])([A-Z\(])', r' \1', s).strip()
-
-@plugins.command
-def stack(env):
-    '''Displays the current stack.'''
-    print env.stack
-
-@plugins.command
-def help(env, name):
-    '''Displays help for a command.'''
-    fn = env.resolveFunction(name)
-    if fn.__doc__:
-        print fn.__doc__
-    else:
-        print 'No help available.'
-
-@plugins.command
-def inc(env, value):
-    return value + 1
-
-@plugins.command
-def dec(env, value):
-    return value - 1
-
-@plugins.command
-def regex(env, s, r):
-    m = re.match(r, s)
-    if m is not None:
-        for key, value in m.groupdict().iteritems():
-            _setvar(key, value)
-        return list(m.groups())
+        return dst

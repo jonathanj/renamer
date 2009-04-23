@@ -1,6 +1,6 @@
 from twisted.trial.unittest import TestCase
 
-from renamer.plugins.tv import find_tv_parts
+from renamer.plugins.tv import TV
 
 class TVTests(TestCase):
     cases = [
@@ -23,6 +23,9 @@ class TVTests(TestCase):
         ('ReGenesis - 1x13.avi', 'ReGenesis', '1', '13', 'avi'),
         ]
 
+    def setUp(self):
+        self.plugin = TV(None)
+
     def test_parts(self):
         for case in self.cases:
-            self.assertEqual(find_tv_parts(None, case[0]), case[1:])
+            self.assertEqual(self.plugin.find_parts(case[0]), case[1:])
