@@ -12,6 +12,7 @@ from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
     FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringStart, StringEnd)
 
 from renamer.errors import PluginError
+from renamer.util import Replacer
 
 
 class TV(Plugin):
@@ -22,6 +23,12 @@ class TV(Plugin):
     def __init__(self, **kw):
         super(TV, self).__init__(**kw)
         self.filename = self._createParser()
+        self.replacer = Replacer()
+
+        fd = self.openFile('shownames')
+        if fd is not None:
+            self.replacer.addFromStrings(fd)
+            fd.close()
 
     def _createParser(self):
         def L(value):
@@ -74,9 +81,7 @@ class TV(Plugin):
             key, value = line.strip().split('@', 1)
             data[key] = value.split('^')
 
-        # Hopefully remove year information at the end of a series name.
-        # XXX: is that sane?
-        showName = re.sub(' (\(\d{4}\))$', '', data['Show Name'][0])
+        showName = self.replacer.replace(data['Show Name'][0])
         season, epNumber = map(int, data['Episode Info'][0].split('x'))
         epName = data['Episode Info'][1]
 
