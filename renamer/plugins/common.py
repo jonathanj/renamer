@@ -6,7 +6,7 @@ from twisted.plugin import IPlugin
 
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
-from renamer.util import Replacer
+from renamer.util import Replacement, Replacer
 
 
 class Common(Plugin):
@@ -147,14 +147,8 @@ class OS(Plugin):
 
     def __init__(self, **kw):
         super(OS, self).__init__(**kw)
-        self.replacer = Replacer([
-            # XXX: should we be hardcoding this?
-            (r'[*<>/]', '')])
-
-        fd = self.openFile('replace')
-        if fd is not None:
-            self.replacer.addFromStrings(fd)
-            fd.close()
+        self.repl = Replacement.fromFile(self.openFile('replace'))
+        self.repl.add(Replacer(r'[*<>/]', ''))
 
     @command
     def move(self, src, dstDir):
@@ -170,7 +164,7 @@ class OS(Plugin):
 
     @command
     def rename(self, src, dst):
-        dst = self.replacer.replace(dst)
+        dst = self.repl.replace(dst)
 
         print 'Rename: %s ->\n  %s' % (src, dst)
         if not self.env.safemode:
