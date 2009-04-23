@@ -20,7 +20,7 @@ class ConditionalReplacer(object):
 
     @classmethod
     def fromString(cls, s):
-        return cls(*s.strip().split('\t'))
+        return cls(*s.split('\t'))
 
     def replace(self, input, predInput):
         if self.cond.search(predInput) is None:
