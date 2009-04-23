@@ -26,3 +26,12 @@ def getGlobalPlugins():
     for p in getPlugins():
         if p.name is None:
             yield p
+
+
+class Plugin(object):
+    def __init__(self, env, **kw):
+        super(Plugin, self).__init__(**kw)
+        self.env = env
+
+    def openFile(self, filename):
+        return self.env.openPluginFile(self, filename)

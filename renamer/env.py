@@ -25,8 +25,10 @@ class Environment(object):
         for arg in args:
             self.stack.push(arg)
 
-    def openUserFile(self, filename):
-        path = FilePath(os.path.expanduser('~/.renamer')).child(filename)
+    def openPluginFile(self, plugin, filename):
+        assert plugin.name is not None
+
+        path = FilePath(os.path.expanduser('~/.renamer')).child(plugin.name).child(filename)
         if path.exists():
             return path.open()
         return None
@@ -66,7 +68,7 @@ class Environment(object):
         fd.close()
 
     def _loadPlugin(self, pluginType):
-        p = pluginType(self)
+        p = pluginType(env=self)
         if p.name is None:
             self.globals.append(p)
         else:

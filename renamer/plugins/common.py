@@ -5,17 +5,16 @@ from zope.interface import classProvides
 from twisted.plugin import IPlugin
 
 from renamer.irenamer import IRenamerPlugin
-from renamer.plugin import command
+from renamer.plugin import Plugin, command
 
 
-class Common(object):
+class Common(Plugin):
     classProvides(IPlugin, IRenamerPlugin)
 
     name = None
 
-    def __init__(self, env):
-        super(Common, self).__init__()
-        self.env = env
+    def __init__(self, **kw):
+        super(Common, self).__init__(**kw)
         self.vars = {}
 
     @command
@@ -140,33 +139,21 @@ class Common(object):
         return fmt % self.vars
 
 
-class OS(object):
+class OS(Plugin):
     classProvides(IPlugin, IRenamerPlugin)
 
     name = 'os'
 
-    def __init__(self, env):
-        super(OS, self).__init__()
-        self.env = env
+    def __init__(self, **kw):
+        super(OS, self).__init__(**kw)
+        self.replacer = Replacer([
+            # XXX: should we be hardcoding this?
+            (r'[*<>/]', '')])
 
-        self.replacements = list(self._makeFilenameReplacements())
-
-    def _makeFilenameReplacements(self):
-        # XXX: should we be hardcoding this?
-        yield re.compile(r'[*<>]'), ''
-
-        fd = self.env.openUserFile('replace')
+        fd = self.openFile('replace')
         if fd is not None:
-            for line in fd:
-                line = line.strip()
-                if line:
-                    regex, repl = line.split('\t', 1)
-                    yield re.compile(regex), repl
-
-    def _makeSaneFilename(self, fn):
-        for r, repl in self.replacements:
-            fn = r.sub(repl, fn)
-        return fn
+            self.replacer.addFromStrings(fd)
+            fd.close()
 
     @command
     def move(self, src, dstDir):
@@ -182,7 +169,7 @@ class OS(object):
 
     @command
     def rename(self, src, dst):
-        dst = self._makeSaneFilename(dst)
+        dst = self.replacer.replace(dst)
 
         print 'Rename: %s ->\n  %s' % (src, dst)
         if not self.env.safemode:

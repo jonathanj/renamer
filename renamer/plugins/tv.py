@@ -6,7 +6,7 @@ from zope.interface import classProvides
 from twisted.plugin import IPlugin
 
 from renamer.irenamer import IRenamerPlugin
-from renamer.plugin import command
+from renamer.plugin import Plugin, command
 
 from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
     FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringStart, StringEnd)
@@ -14,14 +14,13 @@ from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
 from renamer.errors import PluginError
 
 
-class TV(object):
+class TV(Plugin):
     classProvides(IPlugin, IRenamerPlugin)
 
     name = 'tv'
 
-    def __init__(self, env):
-        super(TV, self).__init__()
-        self.env = env
+    def __init__(self, **kw):
+        super(TV, self).__init__(**kw)
         self.filename = self._createParser()
 
     def _createParser(self):
