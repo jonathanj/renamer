@@ -2,11 +2,20 @@ import re
 
 
 class ConditionalReplacer(object):
-    def __init__(self, cond, regex, repl):
+    def __init__(self, cond, regex, repl, flags=None):
         super(ConditionalReplacer, self).__init__()
 
-        self.cond = re.compile(cond)
-        self.regex = re.compile(regex)
+        if flags is None:
+            flags = ''
+
+        self.globalReplace = 'g' in flags
+
+        reflags = 0
+        if 'i' in flags:
+            reflags |= re.IGNORECASE
+
+        self.cond = re.compile(cond, reflags)
+        self.regex = re.compile(regex, reflags)
         self.repl = repl
 
     @classmethod
@@ -20,8 +29,8 @@ class ConditionalReplacer(object):
 
 
 class Replacer(ConditionalReplacer):
-    def __init__(self, regex, replace):
-        super(Replacer, self).__init__(r'.*', regex, replace)
+    def __init__(self, regex, replace, flags=None):
+        super(Replacer, self).__init__(r'.*', regex, replace, flags)
 
     def replace(self, input, predInput):
         return super(Replacer, self).replace(input, input)
