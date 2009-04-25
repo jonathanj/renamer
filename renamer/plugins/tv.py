@@ -4,6 +4,7 @@ from BeautifulSoup import BeautifulSoup
 from zope.interface import classProvides
 
 from twisted.plugin import IPlugin
+from twisted.web.client import getPage
 
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
@@ -72,14 +73,16 @@ class TV(Plugin):
         qs = urllib.urlencode([('show', showName), ('ep', key)])
         url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
 
-        data = {}
+        def getParams(page):
+            data = {}
+            for line in page.splitlines():
+                key, value = line.strip().split('@', 1)
+                data[key] = value.split('^')
 
-        for line in urllib.urlopen(url):
-            key, value = line.strip().split('@', 1)
-            data[key] = value.split('^')
+            showName = self.repl['show'].replace(data['Show Name'][0])
+            season, epNumber = map(int, data['Episode Info'][0].split('x'))
+            epName = self.repl['ep'].replace(data['Episode Info'][1], showName)
 
-        showName = self.repl['show'].replace(data['Show Name'][0])
-        season, epNumber = map(int, data['Episode Info'][0].split('x'))
-        epName = self.repl['ep'].replace(data['Episode Info'][1], showName)
+            return showName, season, epNumber, epName
 
-        return showName, season, epNumber, epName
+        return getPage(url).addCallback(getParams)

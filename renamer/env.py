@@ -1,5 +1,6 @@
 import logging, os, shlex
 
+from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.filepath import FilePath
 
 import renamer
@@ -55,17 +56,22 @@ class Environment(object):
         fd = self.openScript(filename)
 
         logging.info('Running script...')
+
+        def _runLine(result, line):
+            def maybeVerbose(result):
+                if self.verbosity >= 2:
+                    print 'rn>', line
+                    # XXX:
+                    return self.execute('stack')
+            return self.execute(line).addCallback(maybeVerbose)
+
+        d = succeed(None)
         for line in fd:
             if not line.strip() or line.startswith('#'):
                 continue
+            d.addCallback(_runLine, line)
 
-            self.execute(line)
-            if self.verbosity >= 2:
-                print 'rn>', line
-                # XXX:
-                self.execute('stack')
-
-        fd.close()
+        return d
 
     def _loadPlugin(self, pluginType):
         p = pluginType(env=self)
@@ -118,8 +124,9 @@ class Environment(object):
         try:
             fn, args = self.parse(line)
         except PluginError, e:
+            # XXX: lose
             logging.error('Error parsing input: %s' % (e,))
-            return
+            raise
 
         n = fn.func_code.co_argcount - 1
 
@@ -133,11 +140,7 @@ class Environment(object):
             self.stack.push(arg)
 
         self.stack.push(fn)
-        try:
-            self.stack.call(n)
-        except StackError, e:
-            logging.error('Error calling function: %s' % (e,))
-            return
+        return self.stack.call(n)
 
 
 class Stack(object):
@@ -181,9 +184,12 @@ class Stack(object):
         else:
             args = []
 
-        rv = fn(*args)
-        if rv is not None:
-            self.push(rv)
+        def pushResult(rv):
+            if rv is not None:
+                self.push(rv)
+
+        return maybeDeferred(fn, *args
+            ).addCallback(pushResult)
 
     def prettyPrint(self):
         if not self.stack:

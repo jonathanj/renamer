@@ -1,5 +1,8 @@
 import glob, logging, optparse, os, sys, stat, time
 
+from twisted.internet import reactor
+from twisted.internet.defer import maybeDeferred, gatherResults
+
 from renamer.env import Environment
 
 
@@ -37,27 +40,38 @@ class Renamer(object):
         if self.options.reverse:
             self.targets.reverse()
 
-        self.env = Environment(self.targets,
-                               safemode=self.options.dryrun,
-                               movemode=self.options.move,
-                               verbosity=self.options.verbosity)
+    def createEnvironment(self, targets):
+        return Environment(targets,
+                           safemode=self.options.dryrun,
+                           movemode=self.options.move,
+                           verbosity=self.options.verbosity)
 
     def run(self):
         if self.options.script is not None:
-            self.runScript()
+            func = self.runScript
         else:
-            self.runInteractive()
+            func = self.runInteractive
+
+        def log(f):
+            f.printTraceback()
+
+        return gatherResults(list(func())
+            ).addErrback(log
+            ).addCallback(lambda result: reactor.stop())
 
     def runScript(self):
         # Run the script as many times as there are targets
         # XXX: this is a bit of hack
-        for _ in self.targets:
-            self.env.runScript(self.options.script)
+        # XXX: it would help to batch these into groups no bigger than N
+        for target in self.targets:
+            env = self.createEnvironment([target])
+            yield env.runScript(self.options.script)
 
     def runInteractive(self):
+        env = createEnvironment(self.targets)
         try:
             while True:
-                self.env.execute(raw_input('rn> '))
+                yield env.execute(raw_input('rn> '))
         except EOFError:
             print
 
@@ -113,4 +127,5 @@ class Renamer(object):
 
 def main():
     r = Renamer()
-    r.run()
+    reactor.callWhenRunning(r.run)
+    reactor.run()
