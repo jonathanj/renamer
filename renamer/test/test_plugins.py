@@ -31,6 +31,9 @@ class TVTests(TestCase):
                                verbosity=0)
         self.plugin = TV(env=self.env)
 
-    def test_parts(self):
+    def test_findParts(self):
+        """
+        Extracting TV show information from filenames works correctly.
+        """
         for case in self.cases:
             self.assertEqual(self.plugin.find_parts(case[0]), case[1:])
