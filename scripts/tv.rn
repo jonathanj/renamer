@@ -2,7 +2,7 @@ load os
 load tv
 dup
 tv.find_parts
-pushlist
+expanditer
 # series_name, season, ep, ext
 camel_case_into_sentence
 title
@@ -16,7 +16,7 @@ var ext
 format "%(season)sx%(ep)02d"
 format "%(series_name)s"
 tv.tvrage
-pushlist
+expanditer
 # series_name, season, ep, name
 var series_name
 var season

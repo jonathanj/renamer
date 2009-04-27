@@ -60,6 +60,9 @@ class TV(Plugin):
 
     @command
     def find_parts(self, src):
+        """
+        Get TV episode information from a filename.
+        """
         try:
             parse = self.filename.parseString(src)
         except ParseException, e:
@@ -69,6 +72,9 @@ class TV(Plugin):
 
     @command
     def tvrage(self, key, showName):
+        """
+        Look up TV episode information on TV Rage.
+        """
         qs = urllib.urlencode([('show', showName), ('ep', key)])
         url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
 
