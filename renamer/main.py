@@ -1,7 +1,7 @@
 import glob, logging, optparse, os, sys, stat, time
 
 from twisted.internet import reactor
-from twisted.internet.defer import maybeDeferred, gatherResults
+from twisted.internet.defer import gatherResults
 
 from renamer.env import Environment
 
@@ -68,7 +68,7 @@ class Renamer(object):
             yield env.runScript(self.options.script)
 
     def runInteractive(self):
-        env = createEnvironment(self.targets)
+        env = self.createEnvironment(self.targets)
         try:
             while True:
                 yield env.execute(raw_input('rn> '))

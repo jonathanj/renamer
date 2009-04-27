@@ -1,5 +1,4 @@
-import re, urllib
-from BeautifulSoup import BeautifulSoup
+import urllib
 
 from zope.interface import classProvides
 
@@ -10,10 +9,10 @@ from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
 
 from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
-    FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringStart, StringEnd)
+    FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringEnd)
 
 from renamer.errors import PluginError
-from renamer.util import Replacement, ConditionalReplacer, Replacer
+from renamer.util import Replacement, ConditionalReplacer
 
 
 class TV(Plugin):

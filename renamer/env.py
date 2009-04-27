@@ -1,4 +1,4 @@
-import logging, os, shlex
+import codecs, logging, os, shlex
 
 from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.filepath import FilePath
@@ -10,12 +10,13 @@ from renamer.plugin import getGlobalPlugins, getPlugin
 
 class Environment(object):
     def __init__(self, args, safemode, movemode, verbosity):
+        self.safemode = safemode
+        self.movemode = movemode
+        self.verbosity = verbosity
+
         self.stack = Stack()
         self.plugins = {}
         self.globals = []
-        self.verbosity = verbosity
-        self.safemode = safemode
-        self.movemode = movemode
 
         if self.safemode:
             logging.info('Safemode enabled.')
@@ -48,7 +49,7 @@ class Environment(object):
             path = path.child(filename)
             if path.exists():
                 logging.info('Found script: %r.' % (path,))
-                return path.open()
+                return codecs.open(path.path, 'rb')
 
         raise EnvironmentError('No script named %r.' % (filename,))
 
@@ -67,7 +68,7 @@ class Environment(object):
 
         d = succeed(None)
         for line in fd:
-            if not line.strip() or line.startswith('#'):
+            if not line.strip() or line.startswith(u'#'):
                 continue
             d.addCallback(_runLine, line)
 
@@ -147,6 +148,9 @@ class Stack(object):
     def __init__(self):
         self.stack = []
 
+    def size(self):
+        return len(self.stack)
+
     def push(self, value):
         """
         Push a value on to the top of the stack.
@@ -157,6 +161,8 @@ class Stack(object):
         """
         Retrieve the value from the top of the stack.
         """
+        if self.size() == 0:
+            raise StackError('Popping from an empty stack')
         return self.stack.pop(0)
 
     def peek(self):
@@ -166,8 +172,8 @@ class Stack(object):
         return self.stack[0]
 
     def popArgs(self, numArgs):
-        if len(self.stack) < numArgs:
-            raise StackError('Expecting %d stack arguments but only found %d' % (numArgs, len(self.stack)))
+        if self.size() < numArgs:
+            raise StackError('Expecting %d stack arguments but only found %d' % (numArgs, self.size()))
         return list(reversed([self.pop() for _ in xrange(numArgs)]))
 
     def call(self, numArgs):
@@ -191,21 +197,23 @@ class Stack(object):
         return maybeDeferred(fn, *args
             ).addCallback(pushResult)
 
-    def prettyPrint(self):
+    def prettyFormat(self):
+        """
+        Get a human-readable stack visualisation.
+
+        @rtype: C{unicode}
+        """
         if not self.stack:
             return '<Empty stack>'
 
-        s = ''
-        for n in xrange(len(self.stack)):
-            if n == 0:
-                s += '-->'
-            else:
-                s += '   '
-            s += ' ' + repr(self.stack[n]) + '\n'
+        s = u'-->'
+        for v in self.stack:
+            s += u' %r\n' % (v,)
+            s += '   '
 
-        return s
+        return s.rstrip(u' ')
 
     def __repr__(self):
         return '<%s size=%d>' % (
             type(self).__name__,
-            len(self.stack))
+            self.size())
