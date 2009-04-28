@@ -63,8 +63,8 @@ class Common(Plugin):
                 'b'
                 'c'
         """
-        it = iter(self.env.stack.pop())
-        for e in reversed(it):
+        seq = list(iter(self.env.stack.pop()))
+        for e in reversed(seq):
             self.env.stack.push(e)
 
     @command
