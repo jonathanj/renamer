@@ -225,11 +225,11 @@ class Common(Plugin):
         self._setvar(name, value)
 
     @command
-    def envvar(self, name):
+    def envvar(self, name, default):
         """
         Get an environment variable.
         """
-        return os.environ[name]
+        return os.environ.get(name, default)
 
     @command
     def format(self, fmt):

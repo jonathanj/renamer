@@ -24,7 +24,9 @@ var name
 # NOTE: change this to change the filename format
 format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
 os.rename
-envvar MEDIA_PATH
+
+## Move the file.
+envvar MEDIA_PATH "."
 var media_path
 format "%(media_path)s/%(series_name)s/Season %(season)d"
 os.move
