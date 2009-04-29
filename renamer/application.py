@@ -1,7 +1,7 @@
 import glob, os, stat, sys, time
 
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredSemaphore
+from twisted.internet.defer import DeferredSemaphore, succeed
 from twisted.internet.stdio import StandardIO
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log, usage
@@ -164,10 +164,13 @@ class RenamerInteractive(LineReceiver):
         def _doLine(result):
             return self.env.execute(line)
 
+        d = succeed(None)
+
         line = line.strip()
         if line:
-            self.semaphore.acquire(
+            d = self.semaphore.acquire(
                 ).addCallback(_doLine
                 ).addErrback(log.err
-                ).addBoth(lambda result: self.semaphore.release()
-                ).addCallback(lambda result: self.prompt())
+                ).addBoth(lambda result: self.semaphore.release())
+
+        d.addCallback(lambda result: self.prompt())
