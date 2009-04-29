@@ -28,6 +28,9 @@ class TV(Plugin):
             'ep':   Replacement.fromFile(self.openFile('epnames'), ConditionalReplacer)}
 
     def _createParser(self):
+        """
+        Create the filename parser.
+        """
         def L(value):
             return Literal(value).suppress()
 
