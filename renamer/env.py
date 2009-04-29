@@ -28,11 +28,10 @@ class Environment(object):
             self.stack.push(arg)
 
     def openPluginFile(self, plugin, filename):
-        assert plugin.name is not None
-
-        path = FilePath(os.path.expanduser('~/.renamer')).child(plugin.name).child(filename)
-        if path.exists():
-            return path.open()
+        if plugin.name is not None:
+            path = FilePath(os.path.expanduser('~/.renamer')).child(plugin.name).child(filename)
+            if path.exists():
+                return path.open()
         return None
 
     def getScriptPaths(self):
