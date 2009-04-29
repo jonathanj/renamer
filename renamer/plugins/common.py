@@ -246,7 +246,7 @@ class OS(Plugin):
 
     def __init__(self, **kw):
         super(OS, self).__init__(**kw)
-        self.repl = Replacement.fromFile(self.openFile('replace'))
+        self.repl = Replacement.fromIterable(self.openFile('replace'))
         self.repl.add(Replacer(r'[*<>/]', ''))
 
     @command

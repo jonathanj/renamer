@@ -5,7 +5,38 @@ from twisted.internet.task import Cooperator
 
 
 class ConditionalReplacer(object):
-    def __init__(self, cond, regex, repl=None, flags=None):
+    """
+    Perform regular-expression substitutions based on a conditional regular-expression.
+
+    @type globalReplace: C{bool}
+    @ivar globalReplace: Flag indicating whether to perform a global replace
+        or not
+
+    @type cond: C{regex}
+    @ivar cond: Conditional compiled regular-expression
+
+    @type regex: C{regex}
+    @ivar regex: Regular-expression to match for substitution
+    """
+    def __init__(self, cond, regex, subst=None, flags=None):
+        """
+        @type cond: C{str} or C{unicode}
+        @param cond: Conditional regular-expression to compile
+
+        @type regex: C{str} or C{unicode}
+        @param regex: Regular-expression to match for substitution
+
+        @type subst: C{str} or C{unicode}
+        @param subst: String to use for substitution
+
+        @type flags: C{str}
+        @param flags: Collection of regular-expression flags, the following
+            values are valid::
+
+                i - Ignore case
+
+                g - Global replace
+        """
         super(ConditionalReplacer, self).__init__()
 
         if flags is None:
@@ -19,47 +50,100 @@ class ConditionalReplacer(object):
 
         self.cond = re.compile(cond, reflags)
         self.regex = re.compile(regex, reflags)
-        self.repl = repl or ''
+        self.subst = subst or ''
 
     @classmethod
     def fromString(cls, s):
+        """
+        Create a replacer from a string.
+
+        Parameters should be separated by a literal tab and are passed
+        directly to the initialiser.
+        """
         return cls(*s.strip('\r\n').split('\t'))
 
-    def replace(self, input, predInput):
-        if self.cond.search(predInput) is None:
+    def replace(self, input, condInput):
+        """
+        Perform a replacement.
+
+        @type input: C{str} or C{unicode}
+        @param input: Input to perform substitution on
+
+        @type condInput: C{str} or C{unicode}
+        @param condInput: Input to check against L{cond}
+
+        @rtype: C{str} or C{unicode}
+        @return: Substituted result
+        """
+        if self.cond.search(condInput) is None:
             return input
-        return self.regex.sub(self.repl, input, int(not self.globalReplace))
+        return self.regex.sub(self.subst, input, int(not self.globalReplace))
 
 
 class Replacer(ConditionalReplacer):
-    def __init__(self, regex, repl=None, flags=None):
-        super(Replacer, self).__init__(r'.*', regex, repl, flags)
+    """
+    Perform regular-expression substitutions.
+    """
+    def __init__(self, regex, subst=None, flags=None):
+        super(Replacer, self).__init__(r'.*', regex, subst, flags)
 
-    def replace(self, input, predInput):
+    def replace(self, input, condInput):
         return super(Replacer, self).replace(input, input)
 
 
 class Replacement(object):
+    """
+    Perform a series of replacements on input.
+
+    @type replacers: C{list}
+    @ivar replacers: Replacer objects used to transform input
+    """
     def __init__(self, replacers):
+        """
+        @type replacers: C{iterable}
+        @param replacers: Initial set of replacer objects
+        """
         super(Replacement, self).__init__()
-        self.replacers = replacers
+        self.replacers = list(replacers)
 
     @classmethod
-    def fromFile(cls, fd, replacerType=Replacer):
+    def fromIterable(cls, iterable, replacerType=Replacer):
+        """
+        Create a L{Replacement} instance from an iterable.
+
+        Lines beginning with C{#} are ignored
+
+        @type iterable: C{iterable} of C{str} or C{unicode}
+        @param iterable: Lines to create replacer objects from.
+
+        @type replacerType: C{type}
+        @param replacerType: Replacer object type to create for each line,
+            defaults to L{Replacer}
+
+        @rtype: L{Replacement}
+        """
         replacers = []
-        if fd is not None:
-            replacers = [replacerType.fromString(line) for line in fd if not line.startswith('#')]
+        if iterable is not None:
+            replacers = [replacerType.fromString(line)
+                         for line in iterable
+                         if line.strip() and not line.startswith('#')]
         return cls(replacers)
 
     def add(self, replacer):
+        """
+        Add a new replacer object.
+        """
         self.replacers.append(replacer)
 
-    def replace(self, input, predInput=None):
-        if predInput is None:
-            predInput = input
+    def replace(self, input, condInput=None):
+        """
+        Perform a replacement.
+        """
+        if condInput is None:
+            condInput = input
 
         for r in self.replacers:
-            input = r.replace(input, predInput)
+            input = r.replace(input, condInput)
 
         return input
 

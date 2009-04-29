@@ -24,8 +24,8 @@ class TV(Plugin):
         super(TV, self).__init__(**kw)
         self.filename = self._createParser()
         self.repl = {
-            'show': Replacement.fromFile(self.openFile('shownames')),
-            'ep':   Replacement.fromFile(self.openFile('epnames'), ConditionalReplacer)}
+            'show': Replacement.fromIterable(self.openFile('shownames')),
+            'ep':   Replacement.fromIterable(self.openFile('epnames'), ConditionalReplacer)}
 
     def _createParser(self):
         """
