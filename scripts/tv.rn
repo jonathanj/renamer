@@ -5,7 +5,6 @@ tv.find_parts
 expanditer
 # series_name, season, ep, ext
 camel_case_into_sentence
-title
 var series_name
 int
 var season
