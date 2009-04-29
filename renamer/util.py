@@ -1,5 +1,8 @@
 import re
 
+from twisted.internet.defer import DeferredList
+from twisted.internet.task import Cooperator
+
 
 class ConditionalReplacer(object):
     def __init__(self, cond, regex, repl=None, flags=None):
@@ -59,3 +62,27 @@ class Replacement(object):
             input = r.replace(input, predInput)
 
         return input
+
+
+def parallel(iterable, count, callable, *a, **kw):
+    """
+    Concurrently fire C{callable} for each element in C{iterable}.
+
+    Any additional arguments or keyword-arguments are passed to C{callable}.
+
+    @type iterable: C{iterable}
+    @param iterable: Values to pass to C{callable}
+
+    @type count: C{int}
+    @param count: Limit of the number of concurrent tasks
+
+    @type callable: C{callable}
+    @param callable: Callable to fire concurrently
+
+    @rtype: L{twisted.internet.defer.Deferred}
+    @return: Results of each call to C{callable}
+    """
+    coop = Cooperator()
+    work = (callable(elem, *a, **kw) for elem in iterable)
+    return DeferredList([coop.coiterate(work) for i in xrange(count)])
+

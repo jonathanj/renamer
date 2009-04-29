@@ -122,26 +122,23 @@ class Environment(object):
         return self.resolveCommand(name), args
 
     def execute(self, line):
-        try:
+        def _execute():
             fn, args = self.parse(line)
-        except PluginError, e:
-            # XXX: lose
-            logging.error('Error parsing input: %s' % (e,))
-            raise
+            n = fn.func_code.co_argcount - 1
 
-        n = fn.func_code.co_argcount - 1
+            def _normalizeArgs():
+                numArgsOnStack = n - len(args) - 1
+                return self.stack.popArgs(numArgsOnStack) + args
 
-        def _normalizeArgs():
-            numArgsOnStack = n - len(args) - 1
-            return self.stack.popArgs(numArgsOnStack) + args
+            args = _normalizeArgs()
 
-        args = _normalizeArgs()
+            for arg in args:
+                self.stack.push(arg)
 
-        for arg in args:
-            self.stack.push(arg)
+            self.stack.push(fn)
+            return self.stack.call(n)
 
-        self.stack.push(fn)
-        return self.stack.call(n)
+        return maybeDeferred(_execute)
 
 
 class Stack(object):

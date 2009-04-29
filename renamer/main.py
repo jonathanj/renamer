@@ -1,9 +1,15 @@
 import glob, logging, optparse, os, sys, stat, time
 
 from twisted.internet import reactor
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import (gatherResults, succeed, maybeDeferred,
+    DeferredSemaphore)
+from twisted.internet.stdio import StandardIO
+from twisted.protocols.basic import LineReceiver
+from twisted.python.versions import getVersionString
 
+from renamer import version
 from renamer.env import Environment
+from renamer.util import parallel
 
 
 def sortByCtime(path):
@@ -30,6 +36,8 @@ class Renamer(object):
         'size':    sortBySize,
         'name':    sortByName}
 
+    MAX_SIMULTANEOUS_SCRIPTS = 10
+
     def __init__(self):
         self.options, self.targets = self.parseOptions()
 
@@ -46,34 +54,27 @@ class Renamer(object):
                            movemode=self.options.move,
                            verbosity=self.options.verbosity)
 
+    def logFailure(self, f):
+        f.printTraceback()
+
     def run(self):
         if self.options.script is not None:
-            func = self.runScript
+            self.runScript(
+                ).addErrback(self.logFailure
+                ).addCallback(lambda result: reactor.stop())
         else:
-            func = self.runInteractive
-
-        def log(f):
-            f.printTraceback()
-
-        return gatherResults(list(func())
-            ).addErrback(log
-            ).addCallback(lambda result: reactor.stop())
+            self.runInteractive()
 
     def runScript(self):
-        # Run the script as many times as there are targets
-        # XXX: this is a bit of hack
-        # XXX: it would help to batch these into groups no bigger than N
-        for target in self.targets:
+        def _runScript(target):
             env = self.createEnvironment([target])
-            yield env.runScript(self.options.script)
+            return env.runScript(self.options.script)
+
+        return parallel(self.targets, self.MAX_SIMULTANEOUS_SCRIPTS, _runScript)
 
     def runInteractive(self):
         env = self.createEnvironment(self.targets)
-        try:
-            while True:
-                yield env.execute(raw_input('rn> '))
-        except EOFError:
-            print
+        StandardIO(RenamerInteractive(env))
 
     def parseOptions(self):
         parser = optparse.OptionParser(usage='%prog [options] input1 [input2 ...]')
@@ -123,6 +124,42 @@ class Renamer(object):
             logging.basicConfig(level=logging.INFO)
         else:
             logging.basicConfig(level=logging.DEBUG)
+
+
+class RenamerInteractive(LineReceiver):
+    delimiter = os.linesep
+
+    def __init__(self, env):
+        self.env = env
+        self.semaphore = DeferredSemaphore(tokens=1)
+
+    def heading(self):
+        self.transport.write(getVersionString(version) + self.delimiter)
+
+    def prompt(self):
+        self.transport.write('rn> ')
+
+    def connectionMade(self):
+        self.heading()
+        self.prompt()
+
+    def connectionLost(self, reason):
+        reactor.stop()
+
+    def lineReceived(self, line):
+        def _doLine(result):
+            return self.env.execute(line)
+
+        def log(f):
+            f.printTraceback()
+
+        line = line.strip()
+        if line:
+            self.semaphore.acquire(
+                ).addCallback(_doLine
+                ).addErrback(log
+                ).addBoth(lambda result: self.semaphore.release()
+                ).addCallback(lambda result: self.prompt())
 
 
 def main():
