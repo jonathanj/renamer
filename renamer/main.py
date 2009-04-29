@@ -1,8 +1,7 @@
 import glob, logging, optparse, os, sys, stat, time
 
 from twisted.internet import reactor
-from twisted.internet.defer import (gatherResults, succeed, maybeDeferred,
-    DeferredSemaphore)
+from twisted.internet.defer import DeferredSemaphore
 from twisted.internet.stdio import StandardIO
 from twisted.protocols.basic import LineReceiver
 from twisted.python.versions import getVersionString
