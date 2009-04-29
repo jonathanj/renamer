@@ -48,7 +48,7 @@ class Replacement(object):
     def fromFile(cls, fd, replacerType=Replacer):
         replacers = []
         if fd is not None:
-            replacers = [replacerType.fromString(line) for line in fd]
+            replacers = [replacerType.fromString(line) for line in fd if not line.startswith('#')]
         return cls(replacers)
 
     def add(self, replacer):
