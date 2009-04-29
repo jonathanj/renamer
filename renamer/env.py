@@ -1,9 +1,10 @@
-import codecs, logging, os, shlex
+import codecs, os, shlex
 
 from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.filepath import FilePath
 
 import renamer
+from renamer import logging
 from renamer.errors import PluginError, StackError, EnvironmentError
 from renamer.plugin import getGlobalPlugins, getPlugin
 
@@ -19,7 +20,7 @@ class Environment(object):
         self.globals = []
 
         if self.safemode:
-            logging.info('Safemode enabled.')
+            logging.msg('Safemode enabled.', verbosity=2)
 
         for p in getGlobalPlugins():
             self._loadPlugin(p)
@@ -47,7 +48,7 @@ class Environment(object):
         for path in self.getScriptPaths():
             path = path.child(filename)
             if path.exists():
-                logging.info('Found script: %r.' % (path,))
+                logging.msg('Found script: %r.' % (path,), verbosity=2)
                 return codecs.open(path.path, 'rb')
 
         raise EnvironmentError('No script named %r.' % (filename,))
@@ -55,11 +56,11 @@ class Environment(object):
     def runScript(self, filename):
         fd = self.openScript(filename)
 
-        logging.info('Running script...')
+        logging.msg('Running script...', verbosity=2)
 
         def _runLine(result, line):
             def maybeVerbose(result):
-                if self.verbosity >= 2:
+                if self.verbosity > 2:
                     print 'rn>', line
                     # XXX:
                     return self.execute('stack')

@@ -4,6 +4,7 @@ from zope.interface import classProvides
 
 from twisted.plugin import IPlugin
 
+from renamer import logging
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
 from renamer.util import Replacement, Replacer
@@ -256,7 +257,7 @@ class OS(Plugin):
         """
         dstPath = os.path.join(dstDir, src)
         if self.env.movemode:
-            print 'Move: %s ->\n %s' % (src, dstPath)
+            logging.msg('Move: %s ->\n %s' % (src, dstPath))
             if not self.env.safemode:
                 if not os.path.exists(dstDir):
                     os.makedirs(dstDir)
@@ -271,7 +272,7 @@ class OS(Plugin):
         """
         dst = self.repl.replace(dst)
 
-        print 'Rename: %s ->\n  %s' % (src, dst)
+        logging.msg('Rename: %s ->\n  %s' % (src, dst))
         if not self.env.safemode:
             os.rename(src, dst)
 
