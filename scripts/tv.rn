@@ -1,9 +1,12 @@
 load os
 load tv
+# Store the original filename for later use.
 dup
+
+## Guess the episode information.
 tv.find_parts
 expanditer
-# series_name, season, ep, ext
+# Stack: series_name, season, ep, ext
 camel_case_into_sentence
 var series_name
 int
@@ -12,22 +15,31 @@ int
 var ep
 lower
 var ext
+
+# Retrieve metadata from TV Rage.
 format "%(season)sx%(ep)02d"
 format "%(series_name)s"
 tv.tvrage
 expanditer
-# series_name, season, ep, name
+# Stack: series_name, season, ep, name
 var series_name
 var season
 var ep
 var name
-# NOTE: change this to change the filename format
+
+## Rename the file.
+# Read the filename format from a user config, if available.
 format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
+tv.confvar filenameFormat "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
+format
 os.rename
 
 ## Move the file.
 envvar MEDIA_PATH "."
 var media_path
-format "%(media_path)s/%(series_name)s/Season %(season)d"
+# Read the directory format from a user config, if available.
+tv.confvar directoryFormat "%(media_path)s/%(series_name)s/Season %(season)d"
+format
 os.move
+
 pop
