@@ -9,18 +9,59 @@ from renamer.errors import PluginError, StackError, EnvironmentError
 from renamer.plugin import getGlobalPlugins, getPlugin
 
 
+class EnvironmentMode(object):
+    """
+    Environment mode settings.
+
+    @type dryrun: C{bool}
+    @ivar dryrun: Perform a dry run, meaning that no changes, such as file 
+        renames, are persisted
+
+    @type move: C{bool}
+    @ivar move: Enable file moving
+    """
+    def __init__(self, dryrun, move):
+        self.dryrun = dryrun
+        self.move = move
+
+
 class Environment(object):
-    def __init__(self, args, safemode, movemode, verbosity):
-        self.safemode = safemode
-        self.movemode = movemode
+    """
+    Renamer script environment.
+
+    @type mode: L{EnvironmentMode}
+
+    @type verbosity: C{int}
+    @ivar verbosity: Verbosity level::
+
+        0 - Quiet
+
+        1 - Normal
+
+        2 - Verbose
+
+    @type stack: L{Stack}
+
+    @type _plugins: C{dict} mapping C{str} or C{unicode} to C{IRenamerPlugin}s
+    @ivar _plugins: Mapping of plugin names to plugin instances
+
+    @type _globals: C{list} of C{IRenamerPlugin}s
+    @ivar _globals: Sequence of plugin instances without names, used for
+        global command lookups
+    """
+    def __init__(self, args, mode, verbosity):
+        self.mode = mode
         self.verbosity = verbosity
 
         self.stack = Stack()
-        self.plugins = {}
-        self.globals = []
+        self._plugins = {}
+        self._globals = []
 
-        if self.safemode:
-            logging.msg('Safemode enabled.', verbosity=2)
+        if self.isDryRun:
+            logging.msg('Performing a dry-run.', verbosity=2)
+
+        if self.isMoveEnabled:
+            logging.msg('Moving is enabled.', verbosity=2)
 
         for p in getGlobalPlugins():
             self._loadPlugin(p)
@@ -28,7 +69,22 @@ class Environment(object):
         for arg in args:
             self.stack.push(arg)
 
+    @property
+    def isDryRun(self):
+        return self.mode.dryrun
+
+    @property
+    def isMoveEnabled(self):
+        return self.mode.move
+
     def openPluginFile(self, plugin, filename):
+        """
+        Open a user-provided file for a plugin.
+
+        @rtype: C{file} or C{None}
+        @return: File object or C{None} if no such file exists, or C{plugin}
+            is a global plugin
+        """
         if plugin.name is not None:
             path = FilePath(os.path.expanduser('~/.renamer')).child(plugin.name).child(filename)
             if path.exists():
@@ -36,6 +92,11 @@ class Environment(object):
         return None
 
     def getScriptPaths(self):
+        """
+        Retrieve valid script directories.
+
+        @rtype: C{iterable} of C{FilePath} instances
+        """
         path = FilePath(os.path.expanduser('~/.renamer/scripts'))
         if path.exists():
             yield path
@@ -45,15 +106,35 @@ class Environment(object):
             yield path
 
     def openScript(self, filename):
-        for path in self.getScriptPaths():
-            path = path.child(filename)
+        """
+        Attempt to open a script file.
+
+        The filename is tried as is, in the context of the current working
+        path, and then the global script paths are tried.
+
+        @raise EnvironmentError: If C{filename} cannot be found
+
+        @rtype: C{file}
+        """
+        def _found(path):
+            logging.msg('Found script: %r.' % (path,), verbosity=2)
+            return codecs.open(path.path, 'rb')
+
+        def _getPaths():
+            yield FilePath(filename)
+            for path in self.getScriptPaths():
+                yield path.child(filename)
+
+        for path in _getPaths():
             if path.exists():
-                logging.msg('Found script: %r.' % (path,), verbosity=2)
-                return codecs.open(path.path, 'rb')
+                return _found(path)
 
         raise EnvironmentError('No script named %r.' % (filename,))
 
     def runScript(self, filename):
+        """
+        Execute a script file.
+        """
         fd = self.openScript(filename)
 
         logging.msg('Running script...', verbosity=2)
@@ -61,8 +142,7 @@ class Environment(object):
         def _runLine(result, line):
             def maybeVerbose(result):
                 if self.verbosity > 2:
-                    print 'rn>', line
-                    # XXX:
+                    logging.msg('rn> ' + line)
                     return self.execute('stack')
             return self.execute(line).addCallback(maybeVerbose)
 
@@ -75,19 +155,28 @@ class Environment(object):
         return d
 
     def _loadPlugin(self, pluginType):
+        """
+        Create an instance of C{pluginType} and store it accordingly.
+        """
         p = pluginType(env=self)
         if p.name is None:
-            self.globals.append(p)
-        else:
-            self.plugins[p.name] = p
+            self._globals.append(p)
+
+        return p
 
     def load(self, pluginName):
-        if pluginName in self.plugins:
-            return
-        self._loadPlugin(getPlugin(pluginName))
+        """
+        Load a plugin by name.
+        """
+        if pluginName not in self._plugins:
+            self._loadPlugin(getPlugin(pluginName))
+            self._plugins[pluginName] = p
 
     def _resolveGlobalCommand(self, name):
-        for p in self.globals:
+        """
+        Resolve a global command by name.
+        """
+        for p in self._globals:
             cmd = getattr(p, name, None)
             if cmd is not None:
                 return cmd
@@ -95,8 +184,11 @@ class Environment(object):
         raise PluginError('No global command named %r.' % (name,))
 
     def _resolveCommand(self, pluginName, name):
+        """
+        Resolve a plugin command by name.
+        """
         try:
-            p = self.plugins[pluginName]
+            p = self._plugins[pluginName]
             cmd = getattr(p, name, None)
             if cmd is None:
                 raise PluginError('No command named %r in plugin %r.' % (name, pluginName))
@@ -105,6 +197,9 @@ class Environment(object):
             raise PluginError('No plugin named %r.' % (pluginName,))
 
     def resolveCommand(self, name):
+        """
+        Resolve a command by name.
+        """
         if '.' in name:
             pluginName, name = name.split('.', 1)
             cmd = self._resolveCommand(pluginName, name)
@@ -117,11 +212,23 @@ class Environment(object):
         raise PluginError('Not a command %r.' % (name,))
 
     def parse(self, line):
+        """
+        Parse input according to shell-like rules.
+
+        @rtype: C{(callable, list)}
+        @return: A 2-tuple containing a command callable and a sequence of
+            arguments
+        """
         args = shlex.split(line)
         name = args.pop(0)
         return self.resolveCommand(name), args
 
     def execute(self, line):
+        """
+        Execute a line of input.
+
+        @rtype: C{Deferred}
+        """
         def _execute():
             fn, args = self.parse(line)
             n = fn.func_code.co_argcount - 1

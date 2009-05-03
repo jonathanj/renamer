@@ -256,9 +256,9 @@ class OS(Plugin):
         Move a file to a directory.
         """
         dstPath = os.path.join(dstDir, src)
-        if self.env.movemode:
+        if self.env.isMoveEnabled:
             logging.msg('Move: %s ->\n %s' % (src, dstPath))
-            if not self.env.safemode:
+            if not self.env.isDryRun:
                 if not os.path.exists(dstDir):
                     os.makedirs(dstDir)
                 os.rename(src, dstPath)
@@ -273,7 +273,7 @@ class OS(Plugin):
         dst = self.repl.replace(dst)
 
         logging.msg('Rename: %s ->\n  %s' % (src, dst))
-        if not self.env.safemode:
+        if not self.env.isDryRun:
             os.rename(src, dst)
 
         return dst

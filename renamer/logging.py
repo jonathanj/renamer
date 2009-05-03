@@ -4,6 +4,9 @@ from twisted.python import log
 
 
 class RenamerObserver(object):
+    """
+    Twisted event log observer.
+    """
     def __init__(self, verbosity):
         self.verbosity = verbosity
 

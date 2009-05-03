@@ -1,6 +1,6 @@
 from twisted.trial.unittest import TestCase
 
-from renamer.env import Environment
+from renamer.env import Environment, EnvironmentMode
 from renamer.plugins.tv import TV
 
 class TVTests(TestCase):
@@ -25,9 +25,10 @@ class TVTests(TestCase):
         ]
 
     def setUp(self):
+        mode = EnvironmentMode(dryrun=True,
+                               move=False)
         self.env = Environment(args=[],
-                               safemode=True,
-                               movemode=False,
+                               mode=mode,
                                verbosity=0)
         self.plugin = TV(env=self.env)
 
