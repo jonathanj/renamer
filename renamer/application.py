@@ -1,3 +1,6 @@
+"""
+Renamer application logic.
+"""
 import glob, os, stat, sys, time
 
 from twisted.internet import reactor
@@ -12,25 +15,58 @@ from renamer.env import Environment, EnvironmentMode
 from renamer.util import parallel
 
 
-def sortByCtime(path):
-    try:
-        return time.localtime(os.stat(path)[stat.ST_CTIME])
-    except OSError:
-        return -1
+class ArgumentSorter(object):
+    """
+    Sort arguments according to a certain method.
+    """
+    _sortMethods = {
+        'time': ArgumentSorter.byMtime,
+        'size': ArgumentSorter.bySize,
+        'name': ArgumentSorter.byName}
 
+    @staticmethod
+    def byMtime(path):
+        """
+        Sort according to modification time.
+        """
+        try:
+            return time.localtime(os.stat(path)[stat.ST_MTIME])
+        except OSError:
+            return -1
 
-def sortBySize(path):
-    try:
-        return os.stat(path)[stat.ST_SIZE]
-    except OSError:
-        return -1
+    @staticmethod
+    def bySize(path):
+        """
+        Sort according to file size.
+        """
+        try:
+            return os.stat(path)[stat.ST_SIZE]
+        except OSError:
+            return -1
 
+    @staticmethod
+    def byName(path):
+        """
+        Sort according to file name.
+        """
+        return path
 
-def sortByName(path):
-    return path
+    @staticmethod
+    def sort(names, method):
+        """
+        Sort names according to a given method.
+
+        @type names: C{list}
+
+        @type method: C{str}
+        """
+        names.sort(key=self._sortMethods[method])
 
 
 class Options(usage.Options):
+    """
+    Renamer command-line arguments.
+    """
     synopsis = '[options] target [target ...]'
 
     optFlags = [
@@ -44,11 +80,6 @@ class Options(usage.Options):
         ['script',  's', None,   'Renamer script to execute'],
         ['sort',    'S', 'name', 'Sort filenames by criteria: created, name, size']
         ]
-
-    _sortMethods = {
-        'created': sortByCtime,
-        'size':    sortBySize,
-        'name':    sortByName}
 
     def __init__(self):
         usage.Options.__init__(self)
@@ -75,7 +106,7 @@ class Options(usage.Options):
         Sort arguments according to options.
         """
         if self['sort']:
-            targets.sort(key=self._sortMethods[self['sort']])
+            ArgumentSorter.sort(targets, self['sort'])
         if self['reverse']:
             targets.reverse()
         return targets
@@ -105,6 +136,9 @@ class Options(usage.Options):
         return _glob()
 
     def parseArgs(self, *targets):
+        """
+        Parse command-line arguments.
+        """
         if self['script'] and len(targets) == 0:
             raise usage.UsageError('Too few arguments')
 
@@ -116,6 +150,8 @@ class Options(usage.Options):
 class Renamer(object):
     def __init__(self, options, maxConcurrentScripts=10):
         """
+        Initialise a Renamer.
+
         @type options: L{Options}
         @param options: Parsed command-line options
 
@@ -189,6 +225,8 @@ class RenamerInteractive(LineReceiver):
 
     def __init__(self, env):
         """
+        Initialise an interactive Renamer environment.
+
         @type env: L{Environment}
         @param env: Renamer environment for the interactive session
         """

@@ -56,7 +56,7 @@ class Common(Plugin):
         An iterable is popped and each element pushed individually onto the
         stack. The value at the top of the stack is assumed to be iterable.
 
-        e.g.
+        e.g::
             rn> push "abc"
             rn> expanditer
             rn> stack
@@ -199,7 +199,7 @@ class Common(Plugin):
         """
         Convert a camel-case string into a sentence.
 
-        e.g.
+        e.g::
             rn> push "LikeThisOne"
             rn> camel_case_into_sentence
             rn> stack

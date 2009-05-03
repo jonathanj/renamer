@@ -1,3 +1,6 @@
+"""
+Collection of miscellaneous utility functions.
+"""
 import re
 
 from twisted.internet.defer import DeferredList
@@ -20,6 +23,8 @@ class ConditionalReplacer(object):
     """
     def __init__(self, cond, regex, subst=None, flags=None):
         """
+        Initialise the replacer.
+
         @type cond: C{str} or C{unicode}
         @param cond: Conditional regular-expression to compile
 
@@ -70,7 +75,7 @@ class ConditionalReplacer(object):
         @param input: Input to perform substitution on
 
         @type condInput: C{str} or C{unicode}
-        @param condInput: Input to check against L{cond}
+        @param condInput: Input to check against C{cond}
 
         @rtype: C{str} or C{unicode}
         @return: Substituted result
@@ -100,6 +105,8 @@ class Replacement(object):
     """
     def __init__(self, replacers):
         """
+        Initialise a Replacer manager.
+
         @type replacers: C{iterable}
         @param replacers: Initial set of replacer objects
         """
@@ -163,7 +170,7 @@ def parallel(iterable, count, callable, *a, **kw):
     @type callable: C{callable}
     @param callable: Callable to fire concurrently
 
-    @rtype: L{twisted.internet.defer.Deferred}
+    @rtype: C{twisted.internet.defer.Deferred}
     @return: Results of each call to C{callable}
     """
     coop = Cooperator()
