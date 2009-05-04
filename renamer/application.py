@@ -186,7 +186,7 @@ class Renamer(object):
         """
         if self.options['script']:
             self.runScript(self.options['script']
-                ).addErrback(log.err
+                ).addErrback(logging.err
                 ).addCallback(lambda result: reactor.stop())
         else:
             self.runInteractive()
