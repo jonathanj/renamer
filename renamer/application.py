@@ -19,10 +19,6 @@ class ArgumentSorter(object):
     """
     Sort arguments according to a certain method.
     """
-    _sortMethods = {
-        'time': ArgumentSorter.byMtime,
-        'size': ArgumentSorter.bySize,
-        'name': ArgumentSorter.byName}
 
     @staticmethod
     def byMtime(path):
@@ -61,6 +57,11 @@ class ArgumentSorter(object):
         @type method: C{str}
         """
         names.sort(key=self._sortMethods[method])
+
+    _sortMethods = {
+        'time': byMtime,
+        'size': bySize,
+        'name': byName}
 
 
 class Options(usage.Options):
