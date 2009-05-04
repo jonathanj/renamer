@@ -42,12 +42,8 @@ class Environment(object):
 
     @type stack: L{Stack}
 
-    @type _plugins: C{dict} mapping C{str} or C{unicode} to C{IRenamerPlugin}s
-    @ivar _plugins: Mapping of plugin names to plugin instances
-
-    @type _globals: C{list} of C{IRenamerPlugin}s
-    @ivar _globals: Sequence of plugin instances without names, used for
-        global command lookups
+    @type _plugins: C{dict} mapping C{str} to C{dict} mapping C{str} to C{callable}
+    @ivar _plugins: Mapping of C{pluginName} to a mapping of C{commandName} to commands
     """
     def __init__(self, args, mode, verbosity):
         self.mode = mode
@@ -55,7 +51,6 @@ class Environment(object):
 
         self.stack = Stack()
         self._plugins = {}
-        self._globals = []
 
         if self.isDryRun:
             logging.msg('Performing a dry-run.', verbosity=2)
@@ -154,47 +149,45 @@ class Environment(object):
 
         return d
 
+    def _getCommands(self, plugin):
+        """
+        Enumerate plugin commands.
+        """
+        for name in dir(plugin):
+            attr = getattr(plugin, name, None)
+            if getattr(attr, 'command', False):
+                yield name, attr
+
     def _loadPlugin(self, pluginType):
         """
-        Create an instance of C{pluginType} and store it accordingly.
+        Create an instance of C{pluginType} and map its commands.
         """
         p = pluginType(env=self)
-        if p.name is None:
-            self._globals.append(p)
+        pluginName = p.name or None
 
-        return p
+        commands = self._plugins.setdefault(pluginName, {})
+        for name, cmd in self._getCommands(p):
+            commands[name] = cmd
 
     def load(self, pluginName):
         """
         Load a plugin by name.
         """
-        if pluginName not in self._plugins:
-            self._loadPlugin(getPlugin(pluginName))
-            self._plugins[pluginName] = p
-
-    def _resolveGlobalCommand(self, name):
-        """
-        Resolve a global command by name.
-        """
-        for p in self._globals:
-            cmd = getattr(p, name, None)
-            if cmd is not None:
-                return cmd
-
-        raise PluginError('No global command named %r.' % (name,))
+        self._loadPlugin(getPlugin(pluginName))
 
     def _resolveCommand(self, pluginName, name):
         """
         Resolve a plugin command by name.
         """
-        try:
-            p = self._plugins[pluginName]
-            cmd = getattr(p, name, None)
-            if cmd is None:
-                raise PluginError('No command named %r in plugin %r.' % (name, pluginName))
-            return cmd
-        except KeyError:
+        commands = self._plugins.get(pluginName)
+        if commands is None:
             raise PluginError('No plugin named %r.' % (pluginName,))
+
+        cmd = commands.get(name)
+        if cmd is None:
+            raise PluginError('No command named %r.' % (name,))
+
+        return cmd
 
     def resolveCommand(self, name):
         """
@@ -202,14 +195,9 @@ class Environment(object):
         """
         if '.' in name:
             pluginName, name = name.split('.', 1)
-            cmd = self._resolveCommand(pluginName, name)
         else:
-            cmd = self._resolveGlobalCommand(name)
-
-        if getattr(cmd, 'command', False):
-            return cmd
-
-        raise PluginError('Not a command %r.' % (name,))
+            pluginName = None
+        return self._resolveCommand(pluginName, name)
 
     def parse(self, line):
         """
