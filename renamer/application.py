@@ -202,7 +202,7 @@ class Renamer(object):
             env = self.createEnvironment([target])
             return env.runScript(script)
 
-        return parallel(self.targets, self.MAX_CONCURRENT_SCRIPTS, _runScript)
+        return parallel(self.targets, self.maxConcurrentScripts, _runScript)
 
     def runInteractive(self):
         """
