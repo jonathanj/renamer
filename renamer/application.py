@@ -20,8 +20,8 @@ class ArgumentSorter(object):
     Sort arguments according to a certain method.
     """
 
-    @staticmethod
-    def byMtime(path):
+    @classmethod
+    def byMtime(cls, path):
         """
         Sort according to modification time.
         """
@@ -30,8 +30,8 @@ class ArgumentSorter(object):
         except OSError:
             return -1
 
-    @staticmethod
-    def bySize(path):
+    @classmethod
+    def bySize(cls, path):
         """
         Sort according to file size.
         """
@@ -40,15 +40,15 @@ class ArgumentSorter(object):
         except OSError:
             return -1
 
-    @staticmethod
-    def byName(path):
+    @classmethod
+    def byName(cls, path):
         """
         Sort according to file name.
         """
         return path
 
-    @staticmethod
-    def sort(names, method):
+    @classmethod
+    def sort(cls, names, method):
         """
         Sort names according to a given method.
 
@@ -56,22 +56,21 @@ class ArgumentSorter(object):
 
         @type method: C{str}
         """
-        names.sort(key=self._sortMethods[method])
-
-    _sortMethods = {
-        'time': byMtime,
-        'size': bySize,
-        'name': byName}
+        _sortMethods = {
+            'time': cls.byMtime,
+            'size': cls.bySize,
+            'name': cls.byName}
+        names.sort(key=_sortMethods[method])
 
 
 class Options(usage.Options):
     """
     Renamer command-line arguments.
     """
-    synopsis = '[options] target [target ...]'
+    synopsis = '[options] argument [argument ...]'
 
     optFlags = [
-        ['glob',    'g', 'Expand filenames as UNIX-style globs'],
+        ['glob',    'g', 'Expand arguments as UNIX-style globs'],
         ['move',    'm', 'Move files'],
         ['reverse', 'R', 'Reverse sorting order'],
         ['dry-run', 't', 'Perform a dry-run'],
@@ -79,7 +78,7 @@ class Options(usage.Options):
 
     optParameters = [
         ['script',  's', None,   'Renamer script to execute'],
-        ['sort',    'S', 'name', 'Sort filenames by criteria: created, name, size']
+        ['sort',    'S', 'name', 'Sort filenames by criteria: name, size, time']
         ]
 
     def __init__(self):
