@@ -29,7 +29,6 @@ var name
 
 ## Rename the file.
 # Read the filename format from a user config, if available.
-format "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
 tv.confvar filenameFormat "%(series_name)s [%(season)sx%(ep)02d] - %(name)s.%(ext)s"
 format
 os.rename
