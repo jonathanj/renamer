@@ -1,0 +1,93 @@
+.TH RN 1 2009-05-04 "version 1.0.0" "USER COMMANDS"
+
+.SH NAME
+rn \- scripted file renaming
+
+.SH SYNOPSYS
+.B rn
+.RB [\| \-g \|]
+.RB [\| \-m \|]
+.RB [\| \-R \|]
+.RB [\| \-s
+.IR file \|]
+.RB [\| \-S
+.IR sort \|]
+.RB [\| \-t \|]
+.RB [\| \-q \|]
+.RB [\| \-v \|]
+.RI [\| argument \|]
+\&\.\.\.
+
+.SH DESCRIPTION
+.B rn
+is a command line interface to Renamer, a utility designed to rename files
+according to a set of user-provided instructions, generally residing in a
+script file.
+
+.SH OPTIONS
+If no arguments are provided,
+.B rn
+is invoked in interactive mode.
+.TP
+.B \-g, \-\-glob
+Expand arguments according to UNIX-style globs.
+.TP
+.B \-m, \-\-move
+Enable \(lqmove mode\(rq, this allows scripts to perform file move operations.
+.TP
+.B \-R, \-\-reverse
+Reverse the sorting order of the arguments.
+.TP
+.BI \-s\  file ,\ \-\-script= file
+Execute
+.I file\c
+, as a script, for each argument. Each argument is invoked in its own script
+environment, meaning that the stack is not retained between executions and
+any stored variables are not persisted.
+.TP
+.BI \-S\  sort ,\ \-\-sort= sort
+Sort arguments according to criteria:
+.BR name , \ size , \ time .
+.TP
+.B \-t, \-\-dry-run
+Perform a dry-run, meaning that no permanent operations are performed, such
+as file renaming.
+.TP
+.B \-q, \-\-quiet
+Reduce verbosity level.
+.TP
+.B \-v, \-\-verbose
+Increase verbosity level.
+
+.SH SCRIPTING
+Renamer operates in a stack based environment. Command line arguments,
+function return values and function parameters are all pushed and popped
+from the stack.
+.PP
+Function arguments are an exception: any arguments passed inline to a function
+are subtracted from the total number of arguments required and appended to
+the arguments popped from the stack. For example:
+.PP
+.nf
+rn> push "foo bar baz"
+rn> split " "
+rn> stack
+--> ['foo', 'bar', 'baz']
+.fi
+.PP
+Renamer's interactive mode should prove valuable in exploring the behaviour
+of Renamer's commands, particularly the
+.I help
+and
+.I commands
+functions.
+
+.SH FILES
+.TP
+.I ~/.renamer/scripts/
+Directory containing user-provided scripts
+.TP
+.I ~/.renamer/plugin_name/config
+Config file for configuring
+.B plugin_name
+individually
