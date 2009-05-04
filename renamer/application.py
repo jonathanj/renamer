@@ -7,10 +7,10 @@ from twisted.internet import reactor
 from twisted.internet.defer import DeferredSemaphore, succeed
 from twisted.internet.stdio import StandardIO
 from twisted.protocols.basic import LineReceiver
-from twisted.python import log, usage
+from twisted.python import usage
 from twisted.python.versions import getVersionString
 
-from renamer import version
+from renamer import version, logging
 from renamer.env import Environment, EnvironmentMode
 from renamer.util import parallel
 
@@ -256,13 +256,18 @@ class RenamerInteractive(LineReceiver):
         def _doLine(result):
             return self.env.execute(line)
 
+        def maybeQuit(f):
+            f.trap(EOFError)
+            self.transport.loseConnection()
+
         d = succeed(None)
 
         line = line.strip()
         if line:
             d = self.semaphore.acquire(
                 ).addCallback(_doLine
-                ).addErrback(log.err
+                ).addErrback(maybeQuit
+                ).addErrback(logging.err
                 ).addBoth(lambda result: self.semaphore.release())
 
         d.addCallback(lambda result: self.prompt())

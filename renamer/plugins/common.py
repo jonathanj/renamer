@@ -239,6 +239,13 @@ class Common(Plugin):
         """
         return fmt % self.vars
 
+    @command
+    def quit(self):
+        """
+        Exit the environment.
+        """
+        raise EOFError()
+
 
 class OS(Plugin):
     classProvides(IPlugin, IRenamerPlugin)
