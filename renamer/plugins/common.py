@@ -170,14 +170,14 @@ class Common(Plugin):
         if cmd.__doc__:
             code = cmd.im_func.func_code
             argnames = code.co_varnames[1:code.co_argcount]
-            doc = '%s(%s)\n%s' % (cmd.im_func.func_name,
+            doc = '%s(%s)%s%s' % (cmd.im_func.func_name,
                                   ', '.join(argnames),
+                                  os.linesep,
                                   textwrap.dedent(cmd.__doc__.strip()))
         else:
             doc = 'No help available.'
 
         print doc
-        print
 
     @command
     def inc(self, value):
