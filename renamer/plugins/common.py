@@ -162,6 +162,21 @@ class Common(Plugin):
         print self.env.stack.prettyFormat()
 
     @command
+    def commands(self):
+        """
+        List all available commands.
+        """
+        lines = []
+        for pluginName, commands in sorted(self.env._plugins.iteritems()):
+            if commands:
+                if pluginName is None:
+                    pluginName = 'Global:'
+                else:
+                    pluginName = '%s:' % (pluginName,)
+                print pluginName
+                print '   ', ', '.join(sorted(commands.iterkeys()))
+
+    @command
     def help(self, name):
         """
         Retrieve help for a given command.
