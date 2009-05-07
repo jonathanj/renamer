@@ -1,0 +1,44 @@
+load os
+load audio
+# Store the original filename for later use.
+dup
+
+## Retrieve audio metadata.
+audio.gettags "artist|TPE1,album|TALB,title|TIT2,date|year|TDRC,tracknumber|TRCK" "UNKNOWN"
+# Stack: artist, album, title, date, tracknumber
+expanditer
+var artist
+var album
+var title
+# Replace "/"s in the date with "-"s.
+split "/"
+join "-"
+var date
+# Turn tracknumbers like "1/12" into 1.
+split "/"
+paditer "." 2
+expanditer
+int
+var tracknumber
+pop
+
+# Duplicate the filename again, to determine the extension.
+dup
+audio.extension
+var ext
+
+## Rename the file.
+# Read the filename format from a user config, if available.
+audio.confvar filenameFormat "%(tracknumber)02d. %(title)s%(ext)s"
+format
+os.rename
+
+## Move the file.
+envvar MEDIA_PATH "."
+var media_path
+## Read the directory format from a user config, if available.
+audio.confvar directoryFormat "%(artist)s/%(album)s (%(date)s)"
+format
+os.move
+
+pop
