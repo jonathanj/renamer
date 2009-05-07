@@ -1,7 +1,7 @@
 """
 Collection of miscellaneous utility functions.
 """
-import re
+import itertools, re
 
 from twisted.internet.defer import DeferredList
 from twisted.internet.task import Cooperator
@@ -177,3 +177,17 @@ def parallel(iterable, count, callable, *a, **kw):
     work = (callable(elem, *a, **kw) for elem in iterable)
     return DeferredList([coop.coiterate(work) for i in xrange(count)])
 
+
+def padIterable(iterable, padding, count):
+    """
+    Pad C{iterable}, with C{padding}, to C{count} elements.
+
+    Iterables containing more than C{count} elements are clipped to C{count}
+    elements.
+
+    @param iterable: The iterable to iterate.
+    @param padding: Padding object.
+    @param count: The padded length.
+    @return: An iterable.
+    """
+    return itertools.islice(itertools.chain(iterable, itertools.repeat(padding)), count)

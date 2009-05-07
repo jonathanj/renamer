@@ -7,7 +7,7 @@ from twisted.plugin import IPlugin
 from renamer import logging
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
-from renamer.util import Replacement, Replacer
+from renamer.util import Replacement, Replacer, padIterable
 
 
 class Common(Plugin):
@@ -49,12 +49,11 @@ class Common(Plugin):
             return default
 
     @command
-    def expanditer(self):
+    def expanditer(self, iterable):
         """
-        Pop and expand an iterable.
+        Expand an iterable.
 
-        An iterable is popped and each element pushed individually onto the
-        stack. The value at the top of the stack is assumed to be iterable.
+        Each element of an iterable is pushed individually onto the stack.
 
         e.g::
             rn> push "abc"
@@ -64,9 +63,16 @@ class Common(Plugin):
                 'b'
                 'c'
         """
-        seq = list(iter(self.env.stack.pop()))
-        for e in reversed(seq):
+        iterable = list(iter(iterable))
+        for e in reversed(iterable):
             self.env.stack.push(e)
+
+    @command
+    def paditer(self, iterable, padding, count):
+        """
+        Pad an iterable on the stack with "padding" to "count" elements.
+        """
+        return list(padIterable(iter(iterable), padding, int(count)))
 
     @command
     def pop(self):

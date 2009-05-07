@@ -15,7 +15,15 @@ class Audio(Plugin):
 
     def __init__(self, **kw):
         super(Audio, self).__init__(**kw)
-        self.tagCache = {}
+        self._metadataCache = {}
+
+    def _getMetadata(self, filename):
+        """
+        Get file metadata.
+        """
+        if filename not in self._metadataCache:
+            self._metadataCache[filename] = mutagen.File(filename)
+        return self._metadataCache[filename]
 
     def _getTag(self, filename, tagNames, default=None):
         """
@@ -27,22 +35,21 @@ class Audio(Plugin):
         @param tagNames: A C{|} separated list of tag names to attempt when
             retrieving a value, the first successful result is returned
 
-        @return: Tag value or C{default}
+        @return: Tag value as C{unicode} or C{default}
         """
-        if filename not in self.tagCache:
-            self.tagCache[filename] = mutagen.File(filename)
+        md = self._getMetadata(filename)
 
         tagNames = tagNames.split('|')
         for tagName in tagNames:
             try:
-                return self.tagCache[filename][tag][0]
+                return unicode(md[tagName][0])
             except KeyError:
                 pass
 
         return default
 
     @command
-    def tags(self, filename, tagNames, default):
+    def gettags(self, filename, tagNames, default):
         """
         Retrieve a list of tag values.
 
@@ -54,3 +61,16 @@ class Audio(Plugin):
         """
         return [self._getTag(filename, tagName.strip(), default)
                 for tagName in tagNames.split(',')]
+
+    _extensions = {
+        'audio/x-flac': '.flac'}
+
+    @command
+    def extension(self, filename):
+        md = self._getMetadata(filename)
+        for mimeType in md.mime:
+            ext = self._extensions.get(mimeType)
+            if ext is not None:
+                return ext
+
+        return '.' + md.mime[0].split('/', 1)[1]
