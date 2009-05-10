@@ -8,8 +8,12 @@ from twisted.web.client import getPage
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
 
-from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
-    FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringEnd)
+try:
+    import pyparsing
+    from pyparsing import (alphanums, nums, Word, Literal, ParseException, SkipTo,
+        FollowedBy, ZeroOrMore, Combine, NotAny, Optional, StringEnd)
+except ImportError:
+    pyparsing = None
 
 from renamer.errors import PluginError
 from renamer.util import Replacement, ConditionalReplacer
@@ -21,6 +25,8 @@ class TV(Plugin):
     name = 'tv'
 
     def __init__(self, **kw):
+        if pyparsing is None:
+            raise PluginError('"pyparsing" package is required for this plugin')
         super(TV, self).__init__(**kw)
         self.filename = self._createParser()
         self.repl = {

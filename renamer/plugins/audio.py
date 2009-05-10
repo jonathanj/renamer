@@ -1,4 +1,7 @@
-import mutagen
+try:
+    import mutagen
+except ImportError:
+    mutagen = None
 
 from zope.interface import classProvides
 
@@ -6,6 +9,7 @@ from twisted.plugin import IPlugin
 
 from renamer.irenamer import IRenamerPlugin
 from renamer.plugin import Plugin, command
+from renamer.errors import PluginError
 
 
 class Audio(Plugin):
@@ -14,6 +18,8 @@ class Audio(Plugin):
     name = 'audio'
 
     def __init__(self, **kw):
+        if mutagen is None:
+            raise PluginError('"mutagen" package is required for this plugin')
         super(Audio, self).__init__(**kw)
         self._metadataCache = {}
 
