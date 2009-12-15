@@ -47,6 +47,7 @@ class TV(Plugin):
         separator = separator.suppress().leaveWhitespace()
 
         season = number.setResultsName('season')
+        exact_season = Word(nums, exact=2).setResultsName('season')
         short_season = digit.setResultsName('season')
         epnum = number.setResultsName('ep')
         exact_epnum = Word(nums, exact=2).setResultsName('ep')
@@ -54,6 +55,7 @@ class TV(Plugin):
                   | L('[') + season + L('x') + epnum + L(']')
                   | L('S') + season + L('E') + epnum
                   | L('s') + season + L('e') + epnum
+                  | exact_season + exact_epnum
                   | short_season + exact_epnum
                   )
 
