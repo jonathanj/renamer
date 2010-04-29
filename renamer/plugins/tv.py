@@ -87,7 +87,7 @@ class TV(Plugin):
         Look up TV episode information on TV Rage.
         """
         qs = urllib.urlencode([('show', showName), ('ep', key)])
-        url = 'http://www.tvrage.com/quickinfo.php?%s' % (qs,)
+        url = 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
 
         def getParams(page):
             data = {}
