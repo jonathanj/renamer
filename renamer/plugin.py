@@ -68,6 +68,8 @@ class Plugin(object):
         config = {}
         if fd is not None:
             for line in fd:
+                if not line.strip():
+                    continue
                 key, value = line.strip().split('=', 1)
                 config[key] = value
 
