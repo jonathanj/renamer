@@ -34,6 +34,8 @@ class TVRageTests(TestCase):
         # XXX: This is broken and probably has been for a long time, it would
         # be nice if it worked again.
         #('the.4400.1x05.avi', 'the 4400', '1', '05', 'avi'),
+        # This should work, but doesn't.
+        #('flash.gordon.2007.s01e02.dvdrip.xvid-reward.avi', 'flash gordon 2007', '01', '02', 'avi'),
         ('ReGenesis - 1x13.avi', 'ReGenesis', '1', '13', 'avi')]
 
 
