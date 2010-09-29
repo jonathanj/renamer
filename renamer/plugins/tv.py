@@ -41,10 +41,11 @@ class TVRage(RenamerCommand):
 
     def postOptions(self):
         super(TVRage, self).postOptions()
-        self.filenameParsers = self._createParser()
+        self.filenameParsers = [self._createParser(strict=True),
+                                self._createParser(strict=False)]
 
 
-    def _createParser(self):
+    def _createParser(self, strict=False):
         """
         Create the filename parser.
         """
@@ -78,15 +79,14 @@ class TVRage(RenamerCommand):
                          | L('S') + season + L('E') + epnum
                          | L('s') + season + L('e') + epnum)
 
-        episode = ( strict_episode
-                  | exact_season + exact_epnum
-                  | short_season + exact_epnum)
+        if strict:
+            episode = strict_episode
+        else:
+            episode = ( strict_episode
+                      | exact_season + exact_epnum
+                      | short_season + exact_epnum)
 
         series_word = Word(alphanums)
-
-        strict_series = ZeroOrMore(
-            series_word + separator + NotAny(strict_episode + separator)) + series_word
-        strict_series = Combine(strict_series, joinString=' ').setResultsName('series_name')
 
         series = ZeroOrMore(
             series_word + separator + NotAny(episode + separator)) + series_word
@@ -96,10 +96,8 @@ class TVRage(RenamerCommand):
 
         title = SkipTo(FollowedBy(extension))
 
-        suffix = Optional(separator + title) + extension
-
-        return [strict_series + separator + strict_episode + suffix,
-                series + separator + episode + suffix]
+        return (series + separator + episode + Optional(separator + title) +
+                extension)
 
 
     def buildMapping(self, (seriesName, season, episode, episodeName)):
