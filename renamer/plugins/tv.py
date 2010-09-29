@@ -21,12 +21,19 @@ from renamer.errors import PluginError
 class TVRage(RenamerCommand):
     name = 'tvrage'
 
+
     description = 'Rename TV episodes with TV Rage metadata.'
+
 
     longdesc = """
     Extract TV episode information from filenames and rename them based on the
     correct information from TV Rage <http://tvrage.com/>.
+
+    Available placeholders for templates are:
+
+    series, season, padded_season, episode, padded_episode, title
     """
+
 
     defaultNameTemplate = string.Template(
         '$series [${season}x${padded_episode}] - $title')

@@ -15,14 +15,22 @@ from renamer.errors import PluginError
 class Audio(RenamerCommand):
     name = 'audio'
 
+
     description = 'Rename audio files with their metadata.'
+
 
     longdesc = """
     Rename audio files based on their own metadata.
+
+    Available placeholders for templates are:
+
+    artist, album, title, date, tracknumber
     """
+
 
     defaultPrefixTemplate = string.Template(
         '${artist}/${album} (${date})')
+
 
     defaultNameTemplate = string.Template(
         '${tracknumber}. ${title}')

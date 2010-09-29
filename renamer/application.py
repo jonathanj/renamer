@@ -28,11 +28,11 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
 
     optParameters = [
         ('name',   'e', None,
-         'Formatted filename', string.Template),
+         'Formatted filename.', string.Template),
         ('prefix', 'p', None,
-         'Formatted path to prefix to files before renaming', string.Template),
+         'Formatted path to prefix to files before renaming.', string.Template),
         ('concurrent', 'l',  10,
-         'Maximum number of concurrent tasks to perform at a time', int)]
+         'Maximum number of concurrent tasks to perform at a time.', int)]
 
 
     def subCommands():
