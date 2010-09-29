@@ -1,27 +1,40 @@
+import string
+from functools import partial
+
 try:
     import mutagen
+    mutagen # Ssssh, Pyflakes.
 except ImportError:
     mutagen = None
 
-from zope.interface import classProvides
-
-from twisted.plugin import IPlugin
-
-from renamer.irenamer import IRenamerPlugin
-from renamer.plugin import Plugin, command
+from renamer.plugin import RenamerCommand
 from renamer.errors import PluginError
 
 
-class Audio(Plugin):
-    classProvides(IPlugin, IRenamerPlugin)
 
+class Audio(RenamerCommand):
     name = 'audio'
 
-    def __init__(self, **kw):
+    description = 'Rename audio files with their metadata.'
+
+    longdesc = """
+    Rename audio files based on their own metadata.
+    """
+
+    defaultPrefixTemplate = string.Template(
+        '${artist}/${album} (${date})')
+
+    defaultNameTemplate = string.Template(
+        '${tracknumber}. ${title}')
+
+
+    def postOptions(self):
         if mutagen is None:
-            raise PluginError('"mutagen" package is required for this plugin')
-        super(Audio, self).__init__(**kw)
+            raise PluginError(
+                'The "mutagen" package is required for this command')
+        super(Audio, self).postOptions()
         self._metadataCache = {}
+
 
     def _getMetadata(self, filename):
         """
@@ -31,21 +44,20 @@ class Audio(Plugin):
             self._metadataCache[filename] = mutagen.File(filename)
         return self._metadataCache[filename]
 
-    def _getTag(self, filename, tagNames, default=None):
+
+    def getTag(self, path, tagNames, default=u'UNKNOWN'):
         """
         Get a metadata field by name.
 
-        @type filename: C{str} or C{unicode}
+        @type filename: L{twisted.python.filepath.FilePath}
 
-        @type tagNames: C{str} or C{unicode}
+        @type tagNames: C{list} of C{unicode}
         @param tagNames: A C{|} separated list of tag names to attempt when
             retrieving a value, the first successful result is returned
 
         @return: Tag value as C{unicode} or C{default}
         """
-        md = self._getMetadata(filename)
-
-        tagNames = tagNames.split('|')
+        md = self._getMetadata(path.path)
         for tagName in tagNames:
             try:
                 return unicode(md[tagName][0])
@@ -54,29 +66,19 @@ class Audio(Plugin):
 
         return default
 
-    @command
-    def gettags(self, filename, tagNames, default):
-        """
-        Retrieve a list of tag values.
+    def _saneTracknumber(self, tracknumber):
+        if u'/' in tracknumber:
+            tracknumber = tracknumber.split(u'/')[0]
+        return int(tracknumber)
 
-        Multiple tags may be specified by delimiting the names with ",".
-        Alternate tag names for a particular tag may be delimited with "|".
 
-        For example: "title|TIT2,album" would retrieve a tag named "title"
-        (or "TIT2" if "title" didn't exist) and then a tag named "album".
-        """
-        return [self._getTag(filename, tagName.strip(), default)
-                for tagName in tagNames.split(',')]
+    # IRenamerCommand
 
-    _extensions = {
-        'audio/x-flac': '.flac'}
-
-    @command
-    def extension(self, filename):
-        md = self._getMetadata(filename)
-        for mimeType in md.mime:
-            ext = self._extensions.get(mimeType)
-            if ext is not None:
-                return ext
-
-        return '.' + md.mime[0].split('/', 1)[1]
+    def processArgument(self, arg):
+        T = partial(self.getTag, arg)
+        return dict(
+            artist=T([u'artist', u'TPE1']),
+            album=T([u'album', u'TALB']),
+            title=T([u'title', u'TIT2']),
+            date=T([u'date', u'year', u'TDRC']),
+            tracknumber=self._saneTracknumber(T([u'tracknumber', u'TRCK'])))
