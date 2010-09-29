@@ -55,6 +55,9 @@ class RenamerCommand(usage.Options, RenamerSubCommandMixin):
     """
     __metaclass__ = _metaASC
 
+    defaultPrefixTemplate = None
+    defaultNameTemplate = None
+
 
     def parseArgs(self, *args):
         self.parent.parseArgs(*args)

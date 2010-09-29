@@ -1,9 +1,9 @@
 """
 Renamer application logic.
 """
-import errno, glob, os, sys
+import errno, glob, os, string, sys
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 
@@ -24,6 +24,10 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
 
 
     optParameters = [
+        ('name',   'e', None,
+         'Formatted filename', string.Template),
+        ('prefix', 'p', None,
+         'Formatted path to prefix to files before renaming', string.Template),
         ('concurrent', 'l',  10,
          'Maximum number of concurrent tasks to perform at a time', int)]
 
@@ -100,13 +104,13 @@ class Renamer(object):
     Renamer main logic.
 
     @type options: L{renamer.application.Options}
-    @ivar options: Parsed command-line options
+    @ivar options: Parsed command-line options.
     """
     def __init__(self, options):
         self.options = options
 
 
-    def rename(self, src, dst):
+    def rename(self, dst, src):
         options = self.options
 
         if options['dry-run']:
@@ -137,8 +141,31 @@ class Renamer(object):
 
 
     def _processOne(self, src):
-        d = self.options.command.processArgument(self, src)
-        d.addCallback(lambda dst: self.rename(src, dst))
+        command = self.options.command
+
+        def buildDestination(mapping):
+            prefix = self.options['prefix']
+            if prefix is None:
+                prefix = command.defaultPrefixTemplate
+
+            if prefix is not None:
+                prefix = os.path.expanduser(
+                    prefix.safe_substitute(mapping))
+            else:
+                prefix = src.dirname()
+
+            ext = src.splitext()[-1]
+
+            nameTemplate = self.options['name']
+            if nameTemplate is None:
+                nameTemplate = command.defaultNameTemplate
+
+            filename = nameTemplate.safe_substitute(mapping)
+            return FilePath(prefix).child(filename).siblingExtension(ext)
+
+        d = defer.maybeDeferred(command.processArgument, src)
+        d.addCallback(buildDestination)
+        d.addCallback(self.rename, src)
         return d
 
 

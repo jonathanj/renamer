@@ -20,26 +20,23 @@ from renamer.errors import PluginError
 
 
 
-DEFAULT_NAME_FORMAT = string.Template(
-    '$series [${season}x${padded_episode}] - $title')
-
-
-
 class TVRage(RenamerCommand):
     name = 'tvrage'
 
-    description = 'TV episode renamer'
+    description = 'Rename TV episodes with TV Rage metadata.'
 
     longdesc = """
     Extract TV episode information from filenames and rename them based on the
     correct information from TV Rage <http://tvrage.com/>.
     """
 
-    optParameters = [
-        ('prefix', 'p', None,
-         'Formatted path to prefix to files before renaming', string.Template),
-        ('name',   'n', None,
-         'Formatted filename', string.Template)]
+    defaultNameTemplate = string.Template(
+        '$series [${season}x${padded_episode}] - $title')
+
+
+    def postOptions(self):
+        super(TVRage, self).postOptions()
+        self.filenameParser = self._createParser()
 
 
     def _createParser(self):
@@ -90,42 +87,14 @@ class TVRage(RenamerCommand):
                 extension)
 
 
-    def postOptions(self):
-        super(TVRage, self).postOptions()
-        self.filenameParser = self._createParser()
-        # Handle the default value.
-        if self['name'] is None:
-            self['name'] = DEFAULT_NAME_FORMAT
-
-
-    def buildPath(self, (seriesName, season, episode, episodeName), arg):
-        mapping = dict(
+    def buildMapping(self, (seriesName, season, episode, episodeName)):
+        return dict(
             series=seriesName,
             season=season,
             padded_season=u'%02d' % (season,),
             episode=episode,
             padded_episode=u'%02d' % (episode,),
             title=episodeName)
-
-        prefix = self.get('prefix')
-        if prefix is not None:
-            prefix = prefix.safe_substitute(mapping)
-        else:
-            prefix = arg.dirname()
-
-        prefix = os.path.expanduser(prefix)
-        filename = self['name'].safe_substitute(mapping)
-        ext = arg.splitext()[-1]
-        return FilePath(prefix).child(filename).siblingExtension(ext)
-
-
-    def processArgument(self, renamer, arg):
-        # XXX: why does our pattern care about the extension?
-        seriesName, season, episode, ext = self.extractParts(arg.basename())
-        fqe = '%dx%02d' % (int(season), int(episode))
-        d = self.lookupMetadata(seriesName, fqe)
-        d.addCallback(self.buildPath, arg)
-        return d
 
 
     def extractParts(self, filename):
@@ -160,3 +129,14 @@ class TVRage(RenamerCommand):
             return showName, season, epNumber, epName
 
         return getPage(url).addCallback(getParams)
+
+
+    # IRenamerCommand
+
+    def processArgument(self, arg):
+        # XXX: why does our pattern care about the extension?
+        seriesName, season, episode, ext = self.extractParts(arg.basename())
+        fqe = '%dx%02d' % (int(season), int(episode))
+        d = self.lookupMetadata(seriesName, fqe)
+        d.addCallback(self.buildMapping)
+        return d
