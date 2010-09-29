@@ -108,11 +108,12 @@ class TVRage(RenamerCommand):
             return parse.series_name, parse.season, parse.ep, parse.ext
 
 
-    def lookupMetadata(self, seriesName, episode):
+    def lookupMetadata(self, seriesName, season, episode):
         """
         Look up TV episode metadata on TV Rage.
         """
-        qs = urllib.urlencode({'show': seriesName, 'ep': episode})
+        ep = '%dx%02d' % (int(season), int(episode))
+        qs = urllib.urlencode({'show': seriesName, 'ep': ep})
         url = 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
 
         def getParams(page):
@@ -134,7 +135,6 @@ class TVRage(RenamerCommand):
     def processArgument(self, arg):
         # XXX: why does our pattern care about the extension?
         seriesName, season, episode, ext = self.extractParts(arg.basename())
-        fqe = '%dx%02d' % (int(season), int(episode))
-        d = self.lookupMetadata(seriesName, fqe)
+        d = self.lookupMetadata(seriesName, season, episode)
         d.addCallback(self.buildMapping)
         return d
