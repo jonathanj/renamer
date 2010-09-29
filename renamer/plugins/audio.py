@@ -7,6 +7,7 @@ try:
 except ImportError:
     mutagen = None
 
+from renamer import logging
 from renamer.plugin import RenamerCommand
 from renamer.errors import PluginError
 
@@ -65,6 +66,8 @@ class Audio(RenamerCommand):
 
         @return: Tag value as C{unicode} or C{default}
         """
+        logging.msg('Getting metadata for %r from "%s"' % (tagNames, path.path),
+                    verbosity=4)
         md = self._getMetadata(path.path)
         for tagName in tagNames:
             try:

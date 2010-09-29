@@ -32,7 +32,10 @@ class RenamerObserver(object):
             if eventDict.get('source') == 'renamer':
                 verbosity = eventDict.get('verbosity', 1)
                 if self.verbosity >= verbosity:
-                    sys.stdout.write(
+                    leader = '-' * (verbosity - 1)
+                    if leader:
+                        leader += ' '
+                    sys.stdout.write(leader +
                         self._formatEventMessage(eventDict['message']))
                     sys.stdout.flush()
 

@@ -3,8 +3,6 @@ import urllib
 
 from twisted.web.client import getPage
 
-from renamer.plugin import RenamerCommand
-
 try:
     import pyparsing
     from pyparsing import (
@@ -14,6 +12,8 @@ try:
 except ImportError:
     pyparsing = None
 
+from renamer import logging
+from renamer.plugin import RenamerCommand
 from renamer.errors import PluginError
 
 
@@ -110,9 +110,12 @@ class TVRage(RenamerCommand):
             parse = self.filenameParser.parseString(filename)
         except ParseException, e:
             raise PluginError(
-                'No patterns could be found in %r (%r)' % (filename, e))
+                'No patterns could be found in "%s" (%r)' % (filename, e))
         else:
-            return parse.series_name, parse.season, parse.ep, parse.ext
+            parts = parse.series_name, parse.season, parse.ep, parse.ext
+            logging.msg('Found parts in "%s": %r' % (filename, parts),
+                        verbosity=4)
+            return parts
 
 
     def lookupMetadata(self, seriesName, season, episode):
@@ -134,6 +137,8 @@ class TVRage(RenamerCommand):
             epName = data['Episode Info'][1]
             return showName, season, epNumber, epName
 
+        logging.msg('Looking up TV Rage metadata at %s' % (url,),
+                    verbosity=4)
         return getPage(url).addCallback(getParams)
 
 

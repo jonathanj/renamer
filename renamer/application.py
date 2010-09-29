@@ -95,10 +95,10 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
 
 
     def parseArgs(self, *args):
-        args = (FilePath(self.decodeCommandLine(a)) for a in args)
+        args = (self.decodeCommandLine(arg) for arg in args)
         if self['glob']:
             args = self.glob(args)
-        self.args = list(args)
+        self.args = (FilePath(arg) for arg in args)
 
 
 
@@ -144,18 +144,21 @@ class Renamer(object):
 
 
     def _processOne(self, src):
+        logging.msg('Processing "%s"' % (src.path,),
+                    verbosity=3)
         command = self.options.command
 
         def buildDestination(mapping):
-            prefix = self.options['prefix']
-            if prefix is None:
-                prefix = command.defaultPrefixTemplate
+            prefixTemplate = self.options['prefix']
+            if prefixTemplate is None:
+                prefixTemplate = command.defaultPrefixTemplate
 
-            if prefix is not None:
+            if prefixTemplate is not None:
                 prefix = os.path.expanduser(
-                    prefix.safe_substitute(mapping))
+                    prefixTemplate.safe_substitute(mapping))
             else:
-                prefix = src.dirname()
+                prefixTemplate = string.Template(src.dirname())
+                prefix = prefixTemplate.template
 
             ext = src.splitext()[-1]
 
@@ -164,6 +167,10 @@ class Renamer(object):
                 nameTemplate = command.defaultNameTemplate
 
             filename = nameTemplate.safe_substitute(mapping)
+            logging.msg(
+                'Building filename: prefix=%r  name=%r  mapping=%r' % (
+                    prefixTemplate.template, nameTemplate.template, mapping),
+                verbosity=3)
             return FilePath(prefix).child(filename).siblingExtension(ext)
 
         d = defer.maybeDeferred(command.processArgument, src)
@@ -173,6 +180,10 @@ class Renamer(object):
 
 
     def run(self):
+        logging.msg(
+            'Running, doing at most %d concurrent operations' % (
+                self.options['concurrent'],),
+            verbosity=3)
         d = util.parallel(
             self.options.args, self.options['concurrent'], self._processOne)
         d.addErrback(logging.err)
