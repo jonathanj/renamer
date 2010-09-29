@@ -41,11 +41,9 @@ class TVRage(RenamerCommand):
 
     def postOptions(self):
         super(TVRage, self).postOptions()
-        self.filenameParsers = [self._createParser(strict=True),
-                                self._createParser(strict=False)]
 
 
-    def _createParser(self, strict=False):
+    def _createParser(self, strict=False, series_name=None):
         """
         Create the filename parser.
         """
@@ -86,11 +84,14 @@ class TVRage(RenamerCommand):
                       | exact_season + exact_epnum
                       | short_season + exact_epnum)
 
-        series_word = Word(alphanums)
+        if series_name is not None:
+            series = Literal(series_name).setResultsName('series_name')
+        else:
+            series_word = Word(alphanums)
 
-        series = ZeroOrMore(
-            series_word + separator + NotAny(episode + separator)) + series_word
-        series = Combine(series, joinString=' ').setResultsName('series_name')
+            series = ZeroOrMore(
+                series_word + separator + NotAny(episode + separator)) + series_word
+            series = Combine(series, joinString=' ').setResultsName('series_name')
 
         extension = '.' + Word(alphanums).setResultsName('ext') + StringEnd()
 
@@ -110,11 +111,13 @@ class TVRage(RenamerCommand):
             title=episodeName)
 
 
-    def extractParts(self, filename):
+    def extractParts(self, filename, series_name=None):
         """
         Get TV episode information from a filename.
         """
-        for parser in self.filenameParsers:
+        parsers = [self._createParser(strict=True, series_name=series_name),
+                   self._createParser(strict=False, series_name=series_name)]
+        for parser in parsers:
             try:
                 parse = parser.parseString(filename)
                 return parse.series_name, parse.season, parse.ep, parse.ext

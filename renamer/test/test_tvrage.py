@@ -36,6 +36,12 @@ class TVRageTests(TestCase):
         ('Foo - 508 - The cat has 9 lives.avi', 'Foo', '5', '08', 'avi'),
         ('ReGenesis - 1x13.avi', 'ReGenesis', '1', '13', 'avi')]
 
+    casesSeriesName = [
+        ('the.4400', 'the.4400.1x05.avi', 'the.4400', '1', '05', 'avi'),
+        ('flash.gordon.1x05', 'flash.gordon.1x05.s01e02.dvdrip.xvid-reward.avi', 'flash.gordon.1x05', '01', '02', 'avi'),
+        ('Foo', 'Foo - 508 - The cat has 9 lives.avi', 'Foo', '5', '08', 'avi'),
+        ]
+
 
     def setUp(self):
         self.plugin = TVRage()
@@ -49,3 +55,12 @@ class TVRageTests(TestCase):
         """
         for case in self.cases:
             self.assertEqual(self.plugin.extractParts(case[0]), case[1:])
+
+    def test_extractPartsWithSeriesName(self):
+        """
+        Extracting TV show information from filenames works correctly
+        when the series name is specified.
+        """
+        for case in self.casesSeriesName:
+            parsed = self.plugin.extractParts(case[1], series_name=case[0])
+            self.assertEqual(parsed, case[2:])
