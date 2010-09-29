@@ -41,7 +41,7 @@ class TVRage(RenamerCommand):
 
     def postOptions(self):
         super(TVRage, self).postOptions()
-        self.filenameParser = self._createParser()
+        self.filenameParsers = self._createParser()
 
 
     def _createParser(self):
@@ -72,14 +72,22 @@ class TVRage(RenamerCommand):
         short_season = digit.setResultsName('season')
         epnum = number.setResultsName('ep')
         exact_epnum = Word(nums, exact=2).setResultsName('ep')
-        episode = ( season + L('x') + epnum
-                  | L('[') + season + L('x') + epnum + L(']')
-                  | L('S') + season + L('E') + epnum
-                  | L('s') + season + L('e') + epnum
+
+        strict_episode = ( season + L('x') + epnum
+                         | L('[') + season + L('x') + epnum + L(']')
+                         | L('S') + season + L('E') + epnum
+                         | L('s') + season + L('e') + epnum)
+
+        episode = ( strict_episode
                   | exact_season + exact_epnum
                   | short_season + exact_epnum)
 
         series_word = Word(alphanums)
+
+        strict_series = ZeroOrMore(
+            series_word + separator + NotAny(strict_episode + separator)) + series_word
+        strict_series = Combine(strict_series, joinString=' ').setResultsName('series_name')
+
         series = ZeroOrMore(
             series_word + separator + NotAny(episode + separator)) + series_word
         series = Combine(series, joinString=' ').setResultsName('series_name')
@@ -88,8 +96,10 @@ class TVRage(RenamerCommand):
 
         title = SkipTo(FollowedBy(extension))
 
-        return (series + separator + episode + Optional(separator + title) +
-                extension)
+        suffix = Optional(separator + title) + extension
+
+        return [strict_series + separator + strict_episode + suffix,
+                series + separator + episode + suffix]
 
 
     def buildMapping(self, (seriesName, season, episode, episodeName)):
@@ -106,13 +116,14 @@ class TVRage(RenamerCommand):
         """
         Get TV episode information from a filename.
         """
-        try:
-            parse = self.filenameParser.parseString(filename)
-        except ParseException, e:
-            raise PluginError(
-                'No patterns could be found in %r (%r)' % (filename, e))
-        else:
-            return parse.series_name, parse.season, parse.ep, parse.ext
+        for parser in self.filenameParsers:
+            try:
+                parse = parser.parseString(filename)
+                return parse.series_name, parse.season, parse.ep, parse.ext
+            except ParseException, e:
+                pass
+        raise PluginError(
+            'No patterns could be found in %r (%r)' % (filename, e))
 
 
     def lookupMetadata(self, seriesName, season, episode):

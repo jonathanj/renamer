@@ -33,7 +33,8 @@ class TVRageTests(TestCase):
         ('buffy.2x03.dvdrip.xvid-tns.avi', 'buffy', '2', '03', 'avi'),
         # XXX: This is broken and probably has been for a long time, it would
         # be nice if it worked again.
-        #('the.4400.1x05.avi', 'the 4400', '1', '05', 'avi'),
+        ('the.4400.1x05.avi', 'the 4400', '1', '05', 'avi'),
+        ('Foo - 508 - The cat has 9 lives.avi', 'Foo', '5', '08', 'avi'),
         ('ReGenesis - 1x13.avi', 'ReGenesis', '1', '13', 'avi')]
 
 
