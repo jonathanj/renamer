@@ -1,3 +1,4 @@
+from twisted.python import log
 from twisted.internet import reactor
 
 from renamer import application
@@ -9,10 +10,8 @@ def main():
     options.parseOptions()
 
     obs = RenamerObserver(options['verbosity'])
-    obs.start()
+    log.startLoggingWithObserver(obs.emit, setStdout=False)
 
     r = application.Renamer(options)
     reactor.callWhenRunning(r.run)
     reactor.run()
-
-    obs.stop()
