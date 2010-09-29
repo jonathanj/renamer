@@ -1,91 +1,64 @@
+import sys
+from zope.interface import directlyProvides
+
 from twisted import plugin
+from twisted.python import usage
 
 from renamer import plugins
-from renamer.errors import PluginError
-from renamer.irenamer import IRenamerPlugin
+from renamer.irenamer import IRenamerCommand
 
-
-def command(func):
-    """
-    Decorate a function as a Renamer plugin command.
-    """
-    func.command = True
-    return func
 
 
 def getPlugins():
     """
     Get all available Renamer plugins.
     """
-    return plugin.getPlugins(IRenamerPlugin, plugins)
+    return plugin.getPlugins(IRenamerCommand, plugins)
 
 
-def getPlugin(name):
+
+class RenamerSubCommandMixin(object):
     """
-    Get a plugin by name.
-
-    @raise PluginError: If no plugin is named C{name}
+    Mixin for Renamer commands.
     """
-    for p in getPlugins():
-        if p.name == name:
-            return p
+    def decodeCommandLine(self, cmdline):
+        """
+        Turn a byte string from the command line into a unicode string.
+        """
+        codec = getattr(sys.stdin, 'encoding', None) or sys.getdefaultencoding()
+        return unicode(cmdline, codec)
 
-    raise PluginError('No plugin named %r.' % (name,))
 
 
-def getGlobalPlugins():
+class _metaASC(type):
+    def __new__(cls, name, bases, attrs):
+        newcls = type.__new__(cls, name, bases, attrs)
+        if not (newcls.__name__ == 'RenamerCommand' and
+                newcls.__module__ == _metaASC.__module__):
+            directlyProvides(newcls, plugin.IPlugin, IRenamerCommand)
+        return newcls
+
+
+
+class RenamerSubCommand(usage.Options, RenamerSubCommandMixin):
     """
-    Get all available global plugins.
+    Sub-level Renamer command.
     """
-    for p in getPlugins():
-        if p.name is None:
-            yield p
 
 
-class Plugin(object):
+
+class RenamerCommand(usage.Options, RenamerSubCommandMixin):
     """
-    Mixin for Renamer plugins.
+    Top-level Renamer command.
 
-    @type env: L{Environment}
-
-    @type config: C{dict}
-    @param config: Plugin-specific parameters
+    These commands will display in the main help listing.
     """
-    def __init__(self, env, **kw):
-        super(Plugin, self).__init__(**kw)
-        self.env = env
-        self.config = self._readConfig()
+    __metaclass__ = _metaASC
 
-    def _readConfig(self):
-        """
-        Read a user-provided plugin configuration.
 
-        The configuration is can be found in C{~/.renamer/plugin_name/config}.
+    def parseArgs(self, *args):
+        self.parent.parseArgs(*args)
 
-        @rtype: C{dict}
-        """
-        fd = self.openFile('config')
-        config = {}
-        if fd is not None:
-            for line in fd:
-                if not line.strip():
-                    continue
-                key, value = line.strip().split('=', 1)
-                config[key] = value
 
-        return config
-
-    def openFile(self, filename):
-        """
-        Open a user-provided file.
-
-        Plugin files are found in C{~/.renamer/plugin_name/}.
-        """
-        return self.env.openPluginFile(self, filename)
-
-    @command
-    def confvar(self, name, default):
-        """
-        Get a config variable.
-        """
-        return self.config.get(name, default)
+    def postOptions(self):
+        self.parent.command = self

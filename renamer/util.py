@@ -161,33 +161,44 @@ def parallel(iterable, count, callable, *a, **kw):
 
     Any additional arguments or keyword-arguments are passed to C{callable}.
 
-    @type iterable: C{iterable}
-    @param iterable: Values to pass to C{callable}
+    @type  iterable: C{iterable}
+    @param iterable: Values to pass to C{callable}.
 
-    @type count: C{int}
-    @param count: Limit of the number of concurrent tasks
+    @type  count: C{int}
+    @param count: Limit of the number of concurrent tasks.
 
-    @type callable: C{callable}
-    @param callable: Callable to fire concurrently
+    @type  callable: C{callable}
+    @param callable: Callable to fire concurrently.
 
-    @rtype: C{twisted.internet.defer.Deferred}
-    @return: Results of each call to C{callable}
+    @rtype:  L{twisted.internet.defer.Deferred}
+    @return: Results of each call to C{callable}.
     """
     coop = Cooperator()
     work = (callable(elem, *a, **kw) for elem in iterable)
     return DeferredList([coop.coiterate(work) for i in xrange(count)])
 
 
-def padIterable(iterable, padding, count):
-    """
-    Pad C{iterable}, with C{padding}, to C{count} elements.
 
-    Iterables containing more than C{count} elements are clipped to C{count}
-    elements.
-
-    @param iterable: The iterable to iterate.
-    @param padding: Padding object.
-    @param count: The padded length.
-    @return: An iterable.
+def rename(src, dst, oneFileSystem=False):
     """
-    return itertools.islice(itertools.chain(iterable, itertools.repeat(padding)), count)
+    Rename a file, optionally refusing to do it across file systems.
+
+    @type  src: L{twisted.python.filepath.FilePath}
+    @param src: Source path.
+
+    @type  dst: L{twisted.python.filepath.FilePath}
+    @param dst: Destination path.
+
+    @type  oneFileSystem: C{bool}
+    @param oneFileSystem: Refuse to move a file across file systems?
+    """
+    if oneFileSystem:
+        try:
+            os.rename(src.path, dst.path)
+        except OSError, e:
+            if e.errno == errno.EXDEV:
+                logging.msg(
+                    'Refusing to move "%s" to "%s" on another filesystem' % (
+                        src.path, dst.path))
+    else:
+        src.moveTo(dst)

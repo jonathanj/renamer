@@ -1,273 +1,150 @@
 """
 Renamer application logic.
 """
-import glob, os, stat, sys, time
+import errno, glob, os, sys
 
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredSemaphore, succeed
-from twisted.internet.stdio import StandardIO
-from twisted.protocols.basic import LineReceiver
 from twisted.python import usage
-from twisted.python.versions import getVersionString
+from twisted.python.filepath import FilePath
 
-from renamer import version, logging
-from renamer.env import Environment, EnvironmentMode
-from renamer.util import parallel
+from renamer import logging, plugin, util
 
 
-class ArgumentSorter(object):
-    """
-    Sort arguments according to a certain method.
-    """
 
-    @classmethod
-    def byMtime(cls, path):
-        """
-        Sort according to modification time.
-        """
-        try:
-            return time.localtime(os.stat(path)[stat.ST_MTIME])
-        except OSError:
-            return -1
+class Options(usage.Options, plugin.RenamerSubCommandMixin):
+    synopsis = '[options] command argument [argument ...]'
 
-    @classmethod
-    def bySize(cls, path):
-        """
-        Sort according to file size.
-        """
-        try:
-            return os.stat(path)[stat.ST_SIZE]
-        except OSError:
-            return -1
-
-    @classmethod
-    def byName(cls, path):
-        """
-        Sort according to file name.
-        """
-        return path
-
-    @classmethod
-    def sort(cls, names, method):
-        """
-        Sort names according to a given method.
-
-        @type names: C{list}
-
-        @type method: C{str}
-        """
-        _sortMethods = {
-            'time': cls.byMtime,
-            'size': cls.bySize,
-            'name': cls.byName}
-        names.sort(key=_sortMethods[method])
-
-
-class Options(usage.Options):
-    """
-    Renamer command-line arguments.
-    """
-    synopsis = '[options] argument [argument ...]'
 
     optFlags = [
-        ['glob',    'g', 'Expand arguments as UNIX-style globs'],
-        ['move',    'm', 'Move files'],
-        ['reverse', 'R', 'Reverse sorting order'],
-        ['dry-run', 't', 'Perform a dry-run'],
-        ]
+        ('glob',            'g',  'Expand arguments as UNIX-style globs.'),
+        ('one-file-system', 'x',  "Don't cross filesystems."),
+        ('dry-run',         'n',  'Perform a dry-run.'),
+        ('link-src',        None, 'Create a symlink at the source.'),
+        ('link-dst',        None, 'Create a symlink at the destination.')]
+
 
     optParameters = [
-        ['script',  's', None,   'Renamer script to execute'],
-        ['sort',    'S', 'name', 'Sort filenames by criteria: name, size, time']
-        ]
+        ('concurrent', 'l',  10,
+         'Maximum number of concurrent tasks to perform at a time', int)]
+
+
+    def subCommands():
+        def get(self):
+            for plg in plugin.getPlugins():
+                try:
+                    yield plg.name, None, plg, plg.description
+                except AttributeError:
+                    raise RuntimeError('Malformed plugin: %r' % (plg,))
+        return (get,)
+
+    subCommands = property(*subCommands())
+
 
     def __init__(self):
         usage.Options.__init__(self)
         self['verbosity'] = 1
 
+
     def opt_verbose(self):
         """
-        Increase output
+        Increase output, use more times for greater effect.
         """
         self['verbosity'] = self['verbosity'] + 1
 
     opt_v = opt_verbose
 
+
     def opt_quiet(self):
         """
-        Suppress output
+        Suppress output.
         """
         self['verbosity'] = self['verbosity'] - 1
 
     opt_q = opt_quiet
 
-    def sortArguments(self, targets):
-        """
-        Sort arguments according to options.
-        """
-        if self['sort']:
-            ArgumentSorter.sort(targets, self['sort'])
-        if self['reverse']:
-            targets.reverse()
-        return targets
 
-    def glob(self, targets):
+    def glob(self, args):
         """
         Glob arguments.
         """
         def _glob():
-            return [target for _target in targets
-                           for target in glob.glob(_target)]
+            return (arg
+                for _arg in args
+                for arg in glob.glob(_arg))
 
         def _globWin32():
-            _targets = []
-            for target in targets:
-                if not os.path.exists(target):
-                    globbed = glob.glob(target)
+            for arg in args:
+                if not os.path.exists(arg):
+                    globbed = glob.glob(arg)
                     if globbed:
-                        _targets.extend(globbed)
+                        for a in globbed:
+                            yield a
                         continue
-
-                _targets.append(target)
-            return _targets
+                yield arg
 
         if sys.platform == 'win32':
             return _globWin32()
         return _glob()
 
-    def parseArgs(self, *targets):
-        """
-        Parse command-line arguments.
-        """
-        if self['script'] and len(targets) == 0:
-            raise usage.UsageError('Too few arguments')
 
+    def parseArgs(self, *args):
+        args = (FilePath(self.decodeCommandLine(a)) for a in args)
         if self['glob']:
-            targets = self.glob(targets)
-        self.targets = self.sortArguments(list(targets))
+            args = self.glob(args)
+        self.args = list(args)
+
 
 
 class Renamer(object):
-    def __init__(self, options, maxConcurrentScripts=10):
-        """
-        Initialise a Renamer.
+    """
+    Renamer main logic.
 
-        @type options: L{Options}
-        @param options: Parsed command-line options
-
-        @type maxConcurrentScripts: C{int}
-        @param maxConcurrentScripts: Maximum number of scripts to execute in
-            parallel, defaults to 10
-        """
+    @type options: L{renamer.application.Options}
+    @ivar options: Parsed command-line options
+    """
+    def __init__(self, options):
         self.options = options
-        self.maxConcurrentScripts = maxConcurrentScripts
-        self.targets = options.targets
 
-    def createEnvironment(self, args):
-        """
-        Create a new environment.
 
-        @type args: C{iterable}
-        @param args: Initial stack arguments
-        """
-        mode = EnvironmentMode(dryrun=self.options['dry-run'],
-                               move=self.options['move'])
-        return Environment(args,
-                           mode=mode,
-                           verbosity=self.options['verbosity'])
+    def rename(self, src, dst):
+        options = self.options
+
+        if options['dry-run']:
+            logging.msg('Dry-run: %s => %s' % (src.path, dst.path))
+            return
+
+        if dst.exists():
+            logging.msg('Refusing to clobber existing file "%s"' % (
+                dst.path,))
+            return
+
+        parent = dst.parent()
+        if not parent.exists():
+            logging.msg('Creating directory structure for "%s"' % (
+                parent.path,), verbosity=2)
+            parent.makedirs()
+
+        # Linking at the destination requires no moving.
+        if options['link-dst']:
+            logging.msg('Symlink: %s => %s' % (src.path, dst.path))
+            src.linkTo(dst)
+        else:
+            logging.msg('Move: %s => %s' % (src.path, dst.path))
+            util.rename(src, dst, oneFileSystem=options['one-file-system'])
+            if options['link-src']:
+                logging.msg('Symlink: %s => %s' % (dst.path, src.path))
+                dst.linkTo(src)
+
+
+    def _processOne(self, src):
+        d = self.options.command.processArgument(self, src)
+        d.addCallback(lambda dst: self.rename(src, dst))
+        return d
+
 
     def run(self):
-        """
-        Start running.
-
-        If the script option was used, the script is run for all command-line
-        arguments, and afterwards execution will stop. Otherwise interactive
-        mode is initiated.
-        """
-        if self.options['script']:
-            self.runScript(self.options['script']
-                ).addErrback(logging.err
-                ).addCallback(lambda result: reactor.stop())
-        else:
-            self.runInteractive()
-
-    def runScript(self, script):
-        """
-        Run the given script in the environent.
-
-        The script is executed for each command-line argument, in parallel, up
-        to a maximum of L{maxConcurrentScripts}.
-        """
-        def _runScript(target):
-            env = self.createEnvironment([target])
-            return env.runScript(script)
-
-        return parallel(self.targets, self.maxConcurrentScripts, _runScript)
-
-    def runInteractive(self):
-        """
-        Begin interactive mode.
-
-        Interactive mode is ended with an EOF.
-        """
-        env = self.createEnvironment(self.targets)
-        StandardIO(RenamerInteractive(env))
-
-
-class RenamerInteractive(LineReceiver):
-    """
-    Interactive Renamer session.
-
-    @type semaphore: C{twisted.internet.defer.DeferredSemaphore}
-    @ivar semaphore: Semaphore for serializing command execution
-    """
-    delimiter = os.linesep
-
-    def __init__(self, env):
-        """
-        Initialise an interactive Renamer environment.
-
-        @type env: L{Environment}
-        @param env: Renamer environment for the interactive session
-        """
-        self.env = env
-        self.semaphore = DeferredSemaphore(tokens=1)
-
-    def heading(self):
-        """
-        Display application header.
-        """
-        self.transport.write(getVersionString(version) + self.delimiter)
-
-    def prompt(self):
-        """
-        Display application prompt.
-        """
-        self.transport.write('rn> ')
-
-    def connectionMade(self):
-        self.heading()
-        self.prompt()
-
-    def connectionLost(self, reason):
-        reactor.stop()
-
-    def lineReceived(self, line):
-        def _doLine(result):
-            return self.env.execute(line)
-
-        def maybeQuit(f):
-            f.trap(EOFError)
-            self.transport.loseConnection()
-
-        d = succeed(None)
-
-        line = line.strip()
-        if line:
-            d = self.semaphore.acquire(
-                ).addCallback(_doLine
-                ).addErrback(maybeQuit
-                ).addErrback(logging.err
-                ).addBoth(lambda result: self.semaphore.release())
-
-        d.addCallback(lambda result: self.prompt())
+        d = util.parallel(
+            self.options.args, self.options['concurrent'], self._processOne)
+        d.addErrback(logging.err)
+        d.addBoth(lambda ignored: reactor.stop())
+        return d

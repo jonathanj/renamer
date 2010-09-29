@@ -1,7 +1,20 @@
 from zope.interface import Interface, Attribute
 
 
-class IRenamerPlugin(Interface):
+
+class IRenamerCommand(Interface):
+    """
+    """
     name = Attribute("""
-    Plugin name or C{None} to indicate a global plugin.
+    Command name.
     """)
+
+
+    description = Attribute("""
+    Brief description of the command.
+    """)
+
+
+    def processArgument(renamer, argument):
+        """
+        """
