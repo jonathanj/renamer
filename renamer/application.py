@@ -1,7 +1,10 @@
 """
 Renamer application logic.
 """
-import errno, glob, os, string, sys
+import glob
+import os
+import string
+import sys
 
 from twisted.internet import reactor, defer
 from twisted.python import usage

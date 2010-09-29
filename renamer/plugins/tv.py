@@ -1,9 +1,7 @@
-import os
 import string
 import urllib
 
 from twisted.web.client import getPage
-from twisted.python.filepath import FilePath
 
 from renamer.plugin import RenamerCommand
 
