@@ -57,7 +57,7 @@ def symlink(src, dst, symlinker=os.symlink):
 
 
 
-def rename(src, dst, oneFileSystem=False):
+def rename(src, dst, oneFileSystem=False, renamer=os.rename):
     """
     Rename a file, optionally refusing to do it across file systems.
 
@@ -69,13 +69,17 @@ def rename(src, dst, oneFileSystem=False):
 
     @type  oneFileSystem: C{bool}
     @param oneFileSystem: Refuse to move a file across file systems?
+
+    @raise renamer.errors.DifferentLogicalDevices: If C{src} and C{dst} reside
+        on different filesystems and cross-linking files is not supported on
+        the current platform.
     """
     if oneFileSystem:
         try:
-            os.rename(src.path, dst.path)
+            renamer(src.path, dst.path)
         except OSError, e:
             if e.errno == errno.EXDEV:
-                logging.msg(
+                raise errors.DifferentLogicalDevices(
                     'Refusing to move "%s" to "%s" on another filesystem' % (
                         src.path, dst.path))
     else:
