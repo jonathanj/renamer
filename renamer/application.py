@@ -120,6 +120,10 @@ class Renamer(object):
             logging.msg('Dry-run: %s => %s' % (src.path, dst.path))
             return
 
+        if src == dst:
+            logging.msg('Skipping noop "%s"' % (src.path,), verbosity=2)
+            return
+
         if dst.exists():
             logging.msg('Refusing to clobber existing file "%s"' % (
                 dst.path,))

@@ -23,7 +23,6 @@ def parallel(iterable, count, callable, *a, **kw):
     @param callable: Callable to fire concurrently.
 
     @rtype:  L{twisted.internet.defer.Deferred}
-    @return: Results of each call to C{callable}.
     """
     coop = Cooperator()
     work = (callable(elem, *a, **kw) for elem in iterable)
