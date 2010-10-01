@@ -114,6 +114,12 @@ class Renamer(object):
 
 
     def rename(self, dst, src):
+        """
+        Rename C{src} to {dst}.
+
+        Perform symlinking if specified and create any required directory
+        hiearchy.
+        """
         options = self.options
 
         if options['dry-run']:
