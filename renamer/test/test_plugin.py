@@ -1,11 +1,8 @@
 import sys
-from zope.interface import classProvides
 
 from twisted.trial.unittest import TestCase
-from twisted.plugin import IPlugin
 
 from renamer import plugin
-from renamer.irenamer import IRenamerCommand
 
 
 

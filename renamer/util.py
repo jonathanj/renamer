@@ -3,7 +3,7 @@ import errno, os
 from twisted.internet.defer import DeferredList
 from twisted.internet.task import Cooperator
 
-from renamer import errors, logging
+from renamer import errors
 
 
 
