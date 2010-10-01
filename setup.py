@@ -9,7 +9,7 @@ distobj = autosetup(
     url="http://launchpad.net/renamer",
     license="MIT",
     platforms=["any"],
-    description="A scriptable and extensible mass file renamer",
+    description="A mass file renamer with plugin support",
     classifiers=[
         "Intended Audience :: End Users/Desktop",
         "Programming Language :: Python",
