@@ -118,28 +118,31 @@ class TVRage(RenamerCommand):
             return parts
 
 
-    def lookupMetadata(self, seriesName, season, episode):
+    def extractMetadata(self, pageData):
+        """
+        Extract TV episode metadata from a TV Rage response.
+        """
+        data = {}
+        for line in pageData.splitlines():
+            key, value = line.strip().split(u'@', 1)
+            data[key] = value.split(u'^')
+
+        series = data['Show Name'][0]
+        season, episode = map(int, data['Episode Info'][0].split('x'))
+        title = data['Episode Info'][1]
+        return series, season, episode, title
+
+
+    def lookupMetadata(self, seriesName, season, episode, fetcher=getPage):
         """
         Look up TV episode metadata on TV Rage.
         """
         ep = '%dx%02d' % (int(season), int(episode))
         qs = urllib.urlencode({'show': seriesName, 'ep': ep})
         url = 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
-
-        def getParams(page):
-            data = {}
-            for line in page.splitlines():
-                key, value = line.strip().split('@', 1)
-                data[key] = value.split('^')
-
-            showName = data['Show Name'][0]
-            season, epNumber = map(int, data['Episode Info'][0].split('x'))
-            epName = data['Episode Info'][1]
-            return showName, season, epNumber, epName
-
         logging.msg('Looking up TV Rage metadata at %s' % (url,),
                     verbosity=4)
-        return getPage(url).addCallback(getParams)
+        return fetcher(url).addCallback(self.extractMetadata)
 
 
     # IRenamerCommand
