@@ -2,7 +2,7 @@ from zope.interface import Interface, Attribute
 
 
 
-class IRenamerCommand(Interface):
+class ICommand(Interface):
     """
     Renamer command.
     """
@@ -16,9 +16,25 @@ class IRenamerCommand(Interface):
     """)
 
 
-    defaultNameFormat = Attribute("""
-    String template for the default name format to use if one is not supplied
-    to Renamer.
+    def process(renamer):
+        """
+        Called once command line parsing is complete.
+        """
+
+
+
+class IRenamingCommand(ICommand):
+    """
+    Command that performs renaming on one argument at a time.
+    """
+    defaultNameTemplate = Attribute("""
+    String template for the default name format to use if one is not supplied.
+    """)
+
+
+    defaultPrefixTemplate = Attribute("""
+    String template for the default prefix format to use if one is not
+    supplied.
     """)
 
 

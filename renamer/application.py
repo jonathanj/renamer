@@ -38,7 +38,9 @@ class Options(usage.Options, plugin._CommandMixin):
 
     def subCommands():
         def get(self):
-            for plg in plugin.getPlugins():
+            commands = itertools.chain(
+                plugin.getRenamingCommands(), plugin.getCommands())
+            for plg in commands:
                 try:
                     yield plg.name, None, plg, plg.description
                 except AttributeError:
@@ -132,72 +134,44 @@ class Renamer(object):
             logging.msg('Skipping noop "%s"' % (src.path,), verbosity=2)
             return
 
-        if dst.exists():
-            logging.msg('Refusing to clobber existing file "%s"' % (
-                dst.path,))
-            return
-
-        parent = dst.parent()
-        if not parent.exists():
-            logging.msg('Creating directory structure for "%s"' % (
-                parent.path,), verbosity=2)
-            parent.makedirs()
-
-        # Linking at the destination requires no moving.
         if options['link-dst']:
-            logging.msg('Symlink: %s => %s' % (src.path, dst.path))
-            util.symlink(src, dst)
+            self.changeset.do(SymlinkAction(src, dst), options)
         else:
-            logging.msg('Move: %s => %s' % (src.path, dst.path))
-            util.rename(src, dst, oneFileSystem=options['one-file-system'])
+            self.changeset.do(MoveAction(src, dst), options)
             if options['link-src']:
-                logging.msg('Symlink: %s => %s' % (dst.path, src.path))
-                util.symlink(dst, src)
+                self.changeset.do(SymlinkAction(dst, src), options)
 
 
-    def _processOne(self, src):
-        logging.msg('Processing "%s"' % (src.path,),
-                    verbosity=3)
-        command = self.options.command
-
-        def buildDestination(mapping):
-            prefixTemplate = self.options['prefix']
-            if prefixTemplate is None:
-                prefixTemplate = command.defaultPrefixTemplate
-
-            if prefixTemplate is not None:
-                prefix = os.path.expanduser(
-                    prefixTemplate.safe_substitute(mapping))
-            else:
-                prefixTemplate = string.Template(src.dirname())
-                prefix = prefixTemplate.template
-
-            ext = src.splitext()[-1]
-
-            nameTemplate = self.options['name']
-            if nameTemplate is None:
-                nameTemplate = command.defaultNameTemplate
-
-            filename = nameTemplate.safe_substitute(mapping)
-            logging.msg(
-                'Building filename: prefix=%r  name=%r  mapping=%r' % (
-                    prefixTemplate.template, nameTemplate.template, mapping),
-                verbosity=3)
-            return FilePath(prefix).child(filename).siblingExtension(ext)
-
-        d = defer.maybeDeferred(command.processArgument, src)
-        d.addCallback(buildDestination)
-        d.addCallback(self.rename, src)
-        return d
+    def runCommand(self, command):
+        return defer.maybeDeferred(command.process, self)
 
 
-    def run(self):
+    def runRenamingCommand(self, command):
+        def _processOne(src):
+            self.currentArgument = src
+            d = self.runCommand(command)
+            d.addCallback(self.performActions, src)
+            return d
+
+        self.changeset = self.history.newChangeset()
         logging.msg(
             'Running, doing at most %d concurrent operations' % (
                 self.options['concurrent'],),
             verbosity=3)
-        d = util.parallel(
-            self.options.args, self.options['concurrent'], self._processOne)
-        d.addErrback(logging.err)
-        d.addBoth(lambda ignored: reactor.stop())
+        return util.parallel(
+            self.options.args, self.options['concurrent'], _processOne)
+
+
+    def run(self):
+        command = self.options.command
+        if IRenamingCommand(type(command), None) is not None:
+            d = self.runRenamingCommand(command)
+        else:
+            d = self.runCommand(command)
+        d.addCallback(self.exit)
         return d
+
+
+    def exit(self, ignored):
+        if not self.options['dry-run']:
+            self.history.save()
