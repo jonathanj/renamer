@@ -145,7 +145,7 @@ class History(object):
             yield Changeset.fromElement(elem)
 
 
-    def _pruneChangesets(self):
+    def pruneChangesets(self):
         """
         Prune invalid or empty changesets from the currently active changesets.
         """
@@ -159,7 +159,7 @@ class History(object):
                 len(self.changesets) - len(newcs)),
             verbosity=3)
 
-        self.changesets = newcs
+        return newcs
 
 
     def newChangeset(self):
@@ -182,7 +182,7 @@ class History(object):
         if not parent.exists():
             parent.makedirs()
 
-        self._pruneChangesets()
+        self.changesets = self.pruneChangesets()
 
         logging.msg(
             'Saving %d changesets to history "%s"' % (
