@@ -2,22 +2,23 @@
 Renamer application logic.
 """
 import glob
+import itertools
 import os
 import string
 import sys
 
-from twisted.internet import reactor, defer
-from twisted.python import usage
+from twisted.internet import defer
+from twisted.python import usage, log
 from twisted.python.filepath import FilePath
 
 from renamer import logging, plugin, util
+from renamer.irenamer import IRenamingCommand
+from renamer.history import History
+from renamer.plugins.actions import MoveAction, SymlinkAction
 
 
 
-class Options(usage.Options, plugin.RenamerSubCommandMixin):
-    synopsis = '[options] command argument [argument ...]'
-
-
+class Options(usage.Options, plugin._CommandMixin):
     optFlags = [
         ('glob',            'g',  'Expand arguments as UNIX-style globs.'),
         ('one-file-system', 'x',  "Don't cross filesystems."),
@@ -109,19 +110,20 @@ class Renamer(object):
     @type options: L{renamer.application.Options}
     @ivar options: Parsed command-line options.
     """
-    def __init__(self, options):
-        self.options = options
+    def __init__(self):
+        obs = logging.RenamerObserver()
+        log.startLoggingWithObserver(obs.emit, setStdout=False)
+
+        self.history = History(
+            FilePath(os.path.expanduser('~/.renamer/history.xml')))
+
+        self.options = Options()
+        self.options.parseOptions()
+        obs.verbosity = self.options['verbosity']
 
 
-    def rename(self, dst, src):
-        """
-        Rename C{src} to {dst}.
-
-        Perform symlinking if specified and create any required directory
-        hiearchy.
-        """
+    def performActions(self, dst, src):
         options = self.options
-
         if options['dry-run']:
             logging.msg('Dry-run: %s => %s' % (src.path, dst.path))
             return

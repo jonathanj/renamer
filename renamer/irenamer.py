@@ -30,3 +30,62 @@ class IRenamerCommand(Interface):
         @return: Mapping of keys to values to substitute info the name
             template.
         """
+
+
+
+class IRenamingAction(Interface):
+    """
+    An action that performs some renaming-related action and is undoable.
+    """
+    def asHumanly():
+        """
+        Construct a human readable representation of the action.
+
+        @rtype: C{unicode}
+        """
+
+
+    def do(src, dst, options):
+        """
+        Perform the action.
+
+        @type  src: L{twisted.python.filepath.FilePath}
+        @param src: Source path.
+
+        @type  dst: L{twisted.python.filepath.FilePath}
+        @param src: Destination path.
+
+        @type  options: L{twisted.python.usage.Options}
+        """
+
+
+    def undo(src, dst, options):
+        """
+        Perform the reverse action.
+
+        @type  src: L{twisted.python.filepath.FilePath}
+        @param src: Source path.
+
+        @type  dst: L{twisted.python.filepath.FilePath}
+        @param src: Destination path.
+
+        @type  options: L{twisted.python.usage.Options}
+        """
+
+
+    def fromElement(elem):
+        """
+        Deserialize and create the action from an ElementTree element.
+
+        @type  elem: L{xml.etree.ElementTree.Element}
+
+        @rtype: L{renamer.irenamer.IRenamingAction}
+        """
+
+
+    def asElement():
+        """
+        Serialize an action to an ElementTree element.
+
+        @rtype: L{xml.etree.ElementTree.Element}
+        """
