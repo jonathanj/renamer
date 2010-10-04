@@ -55,6 +55,12 @@ class Options(usage.Options, plugin._CommandMixin):
         self['verbosity'] = 1
 
 
+    @property
+    def synopsis(self):
+        return 'Usage: %s [options]' % (
+            os.path.basename(sys.argv[0]),)
+
+
     def opt_verbose(self):
         """
         Increase output, use more times for greater effect.

@@ -8,7 +8,7 @@ class RenamerObserver(object):
     """
     Twisted event log observer for Renamer.
     """
-    def __init__(self, verbosity):
+    def __init__(self, verbosity=1):
         self.verbosity = verbosity
 
 
