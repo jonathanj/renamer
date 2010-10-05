@@ -95,7 +95,7 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
         args = (self.decodeCommandLine(arg) for arg in args)
         if self['glob']:
             args = self.glob(args)
-        self.args = (FilePath(arg) for arg in args)
+        self.args = [FilePath(arg) for arg in args]
 
 
 
