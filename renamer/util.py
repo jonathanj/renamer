@@ -99,7 +99,7 @@ def DirectlyProvidingMetaclass(moduleName, typeName, *provides):
     @type  typeName: C{str}
     @param typeName: Name of the owner type of the metaclass.
 
-    @param *args: Interfaces to directly implement.
+    @param *args: Interfaces to directly provide.
 
     @rtype: C{type}
     """
