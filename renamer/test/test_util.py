@@ -1,4 +1,5 @@
 import errno
+from zope.interface import Interface
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -78,3 +79,51 @@ class UtilTests(TestCase):
         self.assertRaises(
             errors.DifferentLogicalDevices,
             util.symlink, src, dst, symlinker=self.exdev)
+
+
+
+class IThing(Interface):
+    """
+    Silly test interface.
+    """
+
+
+
+class Thing(object):
+    """
+    IThing, the silly test interface, providing base class.
+    """
+    __metaclass__ = util.DirectlyProvidingMetaclass(
+        __name__, 'Thing', IThing)
+
+
+
+class SomeThing(Thing):
+    """
+    Provide IThing by subclassing Thing.
+    """
+
+
+
+class DirectlyProvidingMetaclassTests(TestCase):
+    """
+    Tests for L{renamer.util.DirectlyProvidingMetaclass}.
+    """
+    def test_providedBy(self):
+        """
+        Interfaces are not provided by the base class but are provided by any
+        subclasses.
+        """
+        self.assertFalse(
+            IThing.providedBy(Thing))
+        self.assertTrue(
+            IThing.providedBy(SomeThing))
+
+
+    def test_type(self):
+        """
+        L{renamer.util.DirectlyProvidingMetaclass} returns a type instance,
+        suitable for use as a metaclass.
+        """
+        t = util.DirectlyProvidingMetaclass(__name__, 'Chuck', IThing)
+        self.assertTrue(isinstance(t, type))

@@ -1,4 +1,5 @@
 import errno, os
+from zope.interface import directlyProvides
 
 from twisted.internet.defer import DeferredList
 from twisted.internet.task import Cooperator
@@ -83,3 +84,31 @@ def rename(src, dst, oneFileSystem=False, renamer=os.rename):
                         src.path, dst.path))
     else:
         src.moveTo(dst)
+
+
+
+def DirectlyProvidingMetaclass(moduleName, typeName, *provides):
+    """
+    Create a type, suitable for use as a metaclass, that directly provides a
+    set of interfaces.
+
+    @type  moduleName: C{str}
+    @param moduleName: Name of the module where the owner type of the metaclass
+        resides; passing C{__name__} from the calling code is generally useful.
+
+    @type  typeName: C{str}
+    @param typeName: Name of the owner type of the metaclass.
+
+    @param *args: Interfaces to directly implement.
+
+    @rtype: C{type}
+    """
+    class _InnerDirectProviderMeta(type):
+        def __new__(cls, name, bases, attrs):
+            newcls = type.__new__(cls, name, bases, attrs)
+            if not (newcls.__name__ == typeName and
+                    newcls.__module__ == moduleName):
+                directlyProvides(newcls, *provides)
+            return newcls
+
+    return _InnerDirectProviderMeta
