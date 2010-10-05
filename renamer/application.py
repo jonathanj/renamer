@@ -21,7 +21,7 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
     optFlags = [
         ('glob',            'g',  'Expand arguments as UNIX-style globs.'),
         ('one-file-system', 'x',  "Don't cross filesystems."),
-        ('dry-run',         'n',  'Perform a dry-run.'),
+        ('no-act',          'n',  'Perform a trial run with no changes made.'),
         ('link-src',        None, 'Create a symlink at the source.'),
         ('link-dst',        None, 'Create a symlink at the destination.')]
 
