@@ -35,16 +35,13 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
          'Maximum number of concurrent tasks to perform at a time.', int)]
 
 
-    def subCommands():
-        def get(self):
-            for plg in plugin.getPlugins():
-                try:
-                    yield plg.name, None, plg, plg.description
-                except AttributeError:
-                    raise RuntimeError('Malformed plugin: %r' % (plg,))
-        return (get,)
-
-    subCommands = property(*subCommands())
+    @property
+    def subCommands(self):
+        for plg in plugin.getPlugins():
+            try:
+                yield plg.name, None, plg, plg.description
+            except AttributeError:
+                raise RuntimeError('Malformed plugin: %r' % (plg,))
 
 
     def __init__(self):
