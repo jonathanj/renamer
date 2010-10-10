@@ -141,13 +141,13 @@ class Renamer(object):
         # Linking at the destination requires no moving.
         if options['link-dst']:
             logging.msg('Symlink: %s => %s' % (src.path, dst.path))
-            util.symlink(src, dst)
+            src.linkTo(dst)
         else:
             logging.msg('Move: %s => %s' % (src.path, dst.path))
             util.rename(src, dst, oneFileSystem=options['one-file-system'])
             if options['link-src']:
                 logging.msg('Symlink: %s => %s' % (dst.path, src.path))
-                util.symlink(dst, src)
+                dst.linkTo(src)
 
 
     def _processOne(self, src):
