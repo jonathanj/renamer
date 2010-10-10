@@ -7,8 +7,9 @@ try:
     etree # Ssssh, Pyflakes.
 except ImportError:
     from elementtree import ElementTree as etree
+from zope.interface import noLongerProvides
 
-from twisted import plugin
+from twisted.plugin import getPlugins, IPlugin
 from twisted.internet import defer
 from twisted.python import usage
 from twisted.python.components import registerAdapter
@@ -16,7 +17,7 @@ from twisted.python.filepath import FilePath
 
 from renamer import errors, logging, plugins
 from renamer.irenamer import ICommand, IRenamingCommand, IRenamingAction
-from renamer.util import DirectlyProvidingMetaclass
+from renamer.util import InterfaceProvidingMetaclass
 
 
 
@@ -24,7 +25,7 @@ def getCommands():
     """
     Get all available standard commands.
     """
-    return plugin.getPlugins(ICommand, plugins)
+    return getPlugins(ICommand, plugins)
 
 
 
@@ -32,7 +33,7 @@ def getRenamingCommands():
     """
     Get all available renaming commands.
     """
-    return plugin.getPlugins(IRenamingCommand, plugins)
+    return getPlugins(IRenamingCommand, plugins)
 
 
 
@@ -40,7 +41,7 @@ def getActions():
     """
     Get all available Renamer actions.
     """
-    return plugin.getPlugins(IRenamingAction, plugins)
+    return getPlugins(IRenamingAction, plugins)
 
 
 
@@ -86,14 +87,18 @@ class _CommandMixin(object):
 
 
 
+class CommandMeta(InterfaceProvidingMetaclass):
+    providedInterfaces = [IPlugin, ICommand]
+
+
+
 class Command(_CommandMixin, usage.Options):
     """
     Top-level Renamer command.
 
     This command will display in the main help listing.
     """
-    __metaclass__ = DirectlyProvidingMetaclass(
-        __name__, 'Command', plugin.IPlugin, ICommand)
+    __metaclass__ = CommandMeta
 
 
     def process(self, renamer):
@@ -110,18 +115,20 @@ class SubCommand(_CommandMixin, usage.Options):
 
 
 
+class RenamingCommandMeta(InterfaceProvidingMetaclass):
+    providedInterfaces = [IPlugin, IRenamingCommand]
+
+
+
 class RenamingCommand(_CommandMixin, usage.Options):
     """
-    Top-level renaming command.
+    Top-level Renamer command.
 
-    This command will display in the main help listing.
+    These commands will display in the main help listing.
     """
-    __metaclass__ = DirectlyProvidingMetaclass(
-        __name__, 'RenamingCommand', plugin.IPlugin, IRenamingCommand)
-
+    __metaclass__ = RenamingCommandMeta
 
     synopsis = '[options] <argument> [argument ...]'
-
 
     defaultPrefixTemplate = None
     defaultNameTemplate = None
@@ -165,11 +172,18 @@ class RenamingCommand(_CommandMixin, usage.Options):
         d.addCallback(self.buildDestination, renamer.options, arg)
         return d
 
+noLongerProvides(RenamingCommand, IPlugin)
+noLongerProvides(RenamingCommand, IRenamingCommand)
+
+
+
+class RenamingActionMeta(InterfaceProvidingMetaclass):
+    providedInterfaces = [IPlugin, IRenamingAction]
+
 
 
 class RenamingAction(object):
-    __metaclass__ = DirectlyProvidingMetaclass(
-        __name__, 'RenamingAction', plugin.IPlugin, IRenamingAction)
+    __metaclass__ = RenamingActionMeta
 
 
     def __init__(self, src, dst, timestamp=None):

@@ -22,7 +22,7 @@ class Options(usage.Options, plugin._CommandMixin):
     optFlags = [
         ('glob',            'g',  'Expand arguments as UNIX-style globs.'),
         ('one-file-system', 'x',  "Don't cross filesystems."),
-        ('dry-run',         'n',  'Perform a dry-run.'),
+        ('no-act',          'n',  'Perform a trial run with no changes made.'),
         ('link-src',        None, 'Create a symlink at the source.'),
         ('link-dst',        None, 'Create a symlink at the destination.')]
 
@@ -36,18 +36,15 @@ class Options(usage.Options, plugin._CommandMixin):
          'Maximum number of concurrent tasks to perform at a time.', int)]
 
 
-    def subCommands():
-        def get(self):
-            commands = itertools.chain(
-                plugin.getRenamingCommands(), plugin.getCommands())
-            for plg in commands:
-                try:
-                    yield plg.name, None, plg, plg.description
-                except AttributeError:
-                    raise RuntimeError('Malformed plugin: %r' % (plg,))
-        return (get,)
-
-    subCommands = property(*subCommands())
+    @property
+    def subCommands(self):
+        commands = itertools.chain(
+            plugin.getRenamingCommands(), plugin.getCommands())
+        for plg in commands:
+            try:
+                yield plg.name, None, plg, plg.description
+            except AttributeError:
+                raise RuntimeError('Malformed plugin: %r' % (plg,))
 
 
     def __init__(self):
@@ -107,7 +104,7 @@ class Options(usage.Options, plugin._CommandMixin):
         args = (self.decodeCommandLine(arg) for arg in args)
         if self['glob']:
             args = self.glob(args)
-        self.args = (FilePath(arg) for arg in args)
+        self.args = [FilePath(arg) for arg in args]
 
 
 
@@ -132,8 +129,8 @@ class Renamer(object):
 
     def performActions(self, dst, src):
         options = self.options
-        if options['dry-run']:
-            logging.msg('Dry-run: %s => %s' % (src.path, dst.path))
+        if options['no-act']:
+            logging.msg('Simulating: %s => %s' % (src.path, dst.path))
             return
 
         if src == dst:
@@ -179,5 +176,5 @@ class Renamer(object):
 
 
     def exit(self, ignored):
-        if not self.options['dry-run']:
+        if not self.options['no-act']:
             self.history.save()

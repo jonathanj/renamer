@@ -1,2 +1,3 @@
 from renamer._version import version
-version # Ssssh, Pyflakes.
+
+__all__ = ['version']

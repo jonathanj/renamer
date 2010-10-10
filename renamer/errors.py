@@ -7,7 +7,7 @@ class PluginError(RuntimeError):
 
 class DifferentLogicalDevices(RuntimeError):
     """
-    An attempt to cross-link (either rename or symlink) files was made.
+    An attempt to move a file to a different logical device was made.
     """
 
 

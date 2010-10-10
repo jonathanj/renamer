@@ -124,8 +124,8 @@ class TVRage(RenamingCommand):
         """
         data = {}
         for line in pageData.splitlines():
-            key, value = line.strip().split(u'@', 1)
-            data[key] = value.split(u'^')
+            key, value = line.strip().split('@', 1)
+            data[key] = value.split('^')
 
         series = data['Show Name'][0]
         season, episode = map(int, data['Episode Info'][0].split('x'))
