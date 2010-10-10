@@ -1,11 +1,12 @@
 import sys
+from zope.interface import noLongerProvides
 
 from twisted import plugin
 from twisted.python import usage
 
 from renamer import plugins
 from renamer.irenamer import IRenamerCommand
-from renamer.util import DirectlyProvidingMetaclass
+from renamer.util import InterfaceProvidingMetaclass
 
 
 
@@ -37,14 +38,18 @@ class RenamerSubCommand(usage.Options, RenamerSubCommandMixin):
 
 
 
+class RenamerCommandMeta(InterfaceProvidingMetaclass):
+    providedInterfaces = [plugin.IPlugin, IRenamerCommand]
+
+
+
 class RenamerCommand(usage.Options, RenamerSubCommandMixin):
     """
     Top-level Renamer command.
 
     These commands will display in the main help listing.
     """
-    __metaclass__ = DirectlyProvidingMetaclass(
-        __name__, 'RenamerCommand', plugin.IPlugin, IRenamerCommand)
+    __metaclass__ = RenamerCommandMeta
 
     defaultPrefixTemplate = None
     defaultNameTemplate = None
@@ -56,3 +61,6 @@ class RenamerCommand(usage.Options, RenamerSubCommandMixin):
 
     def postOptions(self):
         self.parent.command = self
+
+noLongerProvides(RenamerCommand, plugin.IPlugin)
+noLongerProvides(RenamerCommand, IRenamerCommand)

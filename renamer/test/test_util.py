@@ -62,41 +62,28 @@ class IThing(Interface):
 
 
 
+class ThingMeta(util.InterfaceProvidingMetaclass):
+    """
+    Metaclass that C{alsoProvides} IThing.
+    """
+    providedInterfaces = [IThing]
+
+
+
 class Thing(object):
     """
     IThing, the silly test interface, providing base class.
     """
-    __metaclass__ = util.DirectlyProvidingMetaclass(
-        __name__, 'Thing', IThing)
+    __metaclass__ = ThingMeta
 
 
 
-class SomeThing(Thing):
+class InterfaceProvidingMetaclassTests(TestCase):
     """
-    Provide IThing by subclassing Thing.
-    """
-
-
-
-class DirectlyProvidingMetaclassTests(TestCase):
-    """
-    Tests for L{renamer.util.DirectlyProvidingMetaclass}.
+    Tests for L{renamer.util.InterfaceProvidingMetaclass}.
     """
     def test_providedBy(self):
         """
-        Interfaces are not provided by the base class but are provided by any
-        subclasses.
+        Interfaces are not provided by subclasses.
         """
-        self.assertFalse(
-            IThing.providedBy(Thing))
-        self.assertTrue(
-            IThing.providedBy(SomeThing))
-
-
-    def test_type(self):
-        """
-        L{renamer.util.DirectlyProvidingMetaclass} returns a type instance,
-        suitable for use as a metaclass.
-        """
-        t = util.DirectlyProvidingMetaclass(__name__, 'Chuck', IThing)
-        self.assertTrue(isinstance(t, type))
+        self.assertTrue(IThing.providedBy(Thing))
