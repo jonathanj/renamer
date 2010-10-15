@@ -76,16 +76,6 @@ class _CommandMixin(object):
         return unicode(cmdline, codec)
 
 
-    def setCommand(self, command):
-        if getattr(self.parent, 'command', None) is None:
-            self.parent.command = command
-
-
-    def postOptions(self):
-        super(_CommandMixin, self).postOptions()
-        self.setCommand(self)
-
-
 
 class CommandMeta(InterfaceProvidingMetaclass):
     providedInterfaces = [IPlugin, ICommand]
@@ -110,8 +100,6 @@ class SubCommand(_CommandMixin, usage.Options):
     """
     Sub-level Renamer command.
     """
-    def setCommand(self, command):
-        self.parent.setCommand(command)
 
 
 

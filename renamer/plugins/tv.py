@@ -40,7 +40,6 @@ class TVRage(RenamingCommand):
 
 
     def postOptions(self):
-        super(TVRage, self).postOptions()
         self.filenameParser = self._createParser()
 
 

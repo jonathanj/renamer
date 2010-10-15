@@ -41,7 +41,6 @@ class Audio(RenamingCommand):
         if mutagen is None:
             raise PluginError(
                 'The "mutagen" package is required for this command')
-        super(Audio, self).postOptions()
         self._metadataCache = {}
 
 

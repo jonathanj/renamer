@@ -166,7 +166,10 @@ class Renamer(object):
 
 
     def run(self):
-        command = self.options.command
+        command = self.options.subOptions
+        while getattr(command, 'subOptions', None) is not None:
+            command = command.subOptions
+
         if IRenamingCommand(type(command), None) is not None:
             d = self.runRenamingCommand(command)
         else:
