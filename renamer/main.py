@@ -8,19 +8,28 @@ from renamer import application, logging
 
 
 def main():
-    def _run():
-        d = defer.maybeDeferred(r.run)
-        d.addErrback(logging.err)
-        d.addBoth(lambda ignored: reactor.stop())
-        return d
+    status = 0
 
-    try:
-        r = application.Renamer()
-    except usage.UsageError, e:
+    def logError(f):
+        logging.err(f)
+        global status
+        status = 1
+
+    def usageError(f):
+        f.trap(usage.UsageError)
         prog = os.path.basename(sys.argv[0])
-        print '%s: %s' % (prog, e)
-        print '%s: Consult --help for usage details' % (prog)
-        sys.exit(1)
-    else:
-        reactor.callWhenRunning(_run)
-        reactor.run()
+        sys.stderr.write('%s: %s\n' % (prog, f.value))
+        sys.stderr.write('Consult --help for usage information\n')
+        global status
+        status = 1
+
+    def run():
+        d = defer.maybeDeferred(application.Renamer)
+        d.addCallback(lambda r: r.run())
+        d.addErrback(usageError)
+        d.addErrback(logError)
+        d.addBoth(lambda ign: reactor.stop())
+
+    reactor.callWhenRunning(run)
+    reactor.run()
+    sys.exit(status)
