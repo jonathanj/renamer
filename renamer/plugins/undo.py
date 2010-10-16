@@ -1,85 +1,84 @@
 from twisted.python import usage
 
 from renamer import logging
+from renamer.history import Action, Changeset
 from renamer.plugin import Command, SubCommand
+
+
+
+def getItem(store, storeID, acceptableTypes):
+    """
+    Get an Axiom Item from a store by ID and verify that it is an acceptable
+    type.
+    """
+    try:
+        storeID = int(storeID)
+    except (ValueError, TypeError):
+        raise usage.UsageError(
+            'Identifier %r is not an integer' % (storeID,))
+    else:
+        item = store.getItemByID(storeID, default=None)
+        if not isinstance(item, acceptableTypes):
+            raise usage.UsageError(
+                'Invalid identifier %r' % (storeID,))
+        return item
 
 
 
 class _UndoMixin(object):
     optFlags = [
-        ('forget',        None, 'Forget the changeset/action without undoing anything, use with caution!'),
         ('ignore-errors', None, 'Do not stop the process when encountering OS errors')]
 
 
-    def parseNumeric(self, name, arg):
-        try:
-            return int(arg)
-        except (ValueError, TypeError):
-            raise usage.UsageError('"%s" must be an integer' % (name,))
-
-
-    def validIdentifier(self, name, limit):
-        value = self[name]
-        if not (0 <= value < limit):
-            raise usage.UsageError(
-                'Invalid %s identifier, consult the "undo list" command' % (
-                    name,))
-        return value
-
-
-    def undoActions(self, renamer, changeset, actions, faux=False):
+    def undoActions(self, renamer, changeset, actions):
         """
-        Undo actions from a changeset.
+        Undo specific actions from a changeset.
         """
-        for action in reversed(actions):
-            if not faux:
-                logging.msg('Undo: %s' % (action.asHumanly(),), verbosity=3)
-            try:
-                changeset.undo(action, renamer.options, faux=faux)
-            except OSError, e:
-                if not self['ignore-errors']:
-                    raise e
-                logging.msg('Ignoring %r' % (e,), verbosity=3)
+        for action in actions:
+            msg = 'Simulating undo'
+            if not renamer.options['no-act']:
+                msg = 'Undo'
+
+            logging.msg('%s: %s' % (msg, action.asHumanly()), verbosity=3)
+            if not renamer.options['no-act']:
+                try:
+                    changeset.undo(action, renamer.options)
+                except OSError, e:
+                    if not self['ignore-errors']:
+                        raise e
+                    logging.msg('Ignoring %r' % (e,), verbosity=3)
 
 
 
 class UndoAction(SubCommand, _UndoMixin):
     name = 'action'
-    synopsis = '[options] <changeset> <action>'
+
+
+    synopsis = '[options] <actionID>'
 
 
     longdesc = """
-    Undo a single action from a changeset. Consult "undo list" for changeset
-    and action identifiers.
+    Undo a single action from a changeset. Consult "undo list" for action
+    identifiers.
     """
 
 
-    def parseArgs(self, changeset, action):
-        self['changeset'] = self.parseNumeric('changeset', changeset) - 1
-        self['action'] = self.parseNumeric('action', action) - 1
+    def parseArgs(self,  action):
+        self['action'] = action
 
 
     def process(self, renamer):
-        changeset = self.validIdentifier(
-            'changeset', len(renamer.history.changesets))
-        changeset = renamer.history.changesets[changeset]
-
-        action = self.validIdentifier(
-            'action', len(changeset.actions))
-        actions = [changeset.actions[action]]
-
-        faux = self['forget']
-        verb = ('Undoing', 'Forgetting')[faux]
-        logging.msg('%s %d action(s) from: %s' % (
-            verb, len(actions), changeset.asHumanly(),),
-            verbosity=3)
-        self.undoActions(renamer, changeset, actions, faux=faux)
+        action = self.getItem(renamer.store, self['action'], Action)
+        self.undoActions(
+            renamer, action.changeset, [action])
 
 
 
 class UndoChangeset(SubCommand, _UndoMixin):
     name = 'changeset'
-    synopsis = '[options] <changeset>'
+
+
+    synopsis = '[options] <changesetID>'
 
 
     longdesc = """
@@ -88,20 +87,16 @@ class UndoChangeset(SubCommand, _UndoMixin):
 
 
     def parseArgs(self, changeset):
-        self['changeset'] = self.parseNumeric('changeset', changeset) - 1
+        self['changeset'] = changeset
 
 
     def process(self, renamer):
-        changeset = self.validIdentifier(
-            'changeset', len(renamer.history.changesets))
-        changeset = renamer.history.changesets[changeset]
-        actions = changeset.actions
-
-        faux = self['forget']
-        verb = ('Undoing', 'Forgetting')[faux]
-        logging.msg('%s: %s' % (verb, changeset.asHumanly()),
+        changeset = self.getItem(renamer.store, self['changeset'], Changeset)
+        logging.msg('Undoing: %s' % (changeset.asHumanly(),),
                     verbosity=3)
-        self.undoActions(renamer, changeset, actions, faux=faux)
+        actions = list(changeset.getActions())
+        self.undoActions(
+            renamer, changeset, reversed(actions))
 
 
 
@@ -115,11 +110,40 @@ class UndoList(SubCommand):
 
 
     def process(self, renamer):
-        for i, changeset in enumerate(renamer.history.changesets):
-            print 'Changeset #%d:  %s' % (i + 1, changeset.asHumanly())
-            for j, action in enumerate(changeset.actions):
-                print '   Action #%d:  %s' % (j + 1, action.asHumanly())
+        changesets = list(renamer.history.getChangesets())
+        for cs in changesets:
+            print 'Changeset ID=%d:  %s' % (cs.storeID, cs.asHumanly())
+            for a in cs.getActions():
+                print '   Action ID=%d:  %s' % (a.storeID, a.asHumanly())
             print
+
+        if not changesets:
+            print 'No changesets!'
+
+
+
+class UndoForget(SubCommand):
+    name = 'forget'
+
+
+    synopsis = '<identifier>'
+
+
+    longdesc = """
+    Forget (permanently remove) an undo history action or entire changeset.
+    Consult "undo list" for identifiers.
+    """
+
+
+    def parseArgs(self, identifier):
+        self['identifier'] = identifier
+
+
+    def process(self, renamer):
+        item = getItem(renamer.store, self['identifier'], (Action, Changeset))
+        if not renamer.options['no-act']:
+            logging.msg('Forgetting: %s' % (item.asHumanly(),), verbosity=2)
+            item.deleteFromStore()
 
 
 
@@ -143,6 +167,7 @@ class Undo(Command):
     subCommands = [
         ('action',    None, UndoAction,    'Undo a single action from a changeset'),
         ('changeset', None, UndoChangeset, 'Undo a whole changeset'),
+        ('forget',    None, UndoForget,    'Forget an undo history item'),
         ('list',      None, UndoList,      'List changesets')]
 
 

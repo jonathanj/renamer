@@ -1,11 +1,12 @@
 """
 Renamer application logic.
 """
-import glob
 import itertools
 import os
 import string
 import sys
+
+from axiom.store import Store
 
 from twisted.internet import defer
 from twisted.python import usage, log
@@ -14,7 +15,6 @@ from twisted.python.filepath import FilePath
 from renamer import logging, plugin, util
 from renamer.irenamer import IRenamingCommand
 from renamer.history import History
-from renamer.plugins.actions import MoveAction, SymlinkAction
 
 
 
@@ -88,6 +88,12 @@ class Renamer(object):
     """
     Renamer main logic.
 
+    @type store: L{axiom.store.Store}
+    @ivar store: Renamer database Store.
+
+    @type history: L{renamer.history.History}
+    @ivar history: Renamer history Item.
+
     @type options: L{renamer.application.Options}
     @ivar options: Parsed command-line options.
 
@@ -98,8 +104,9 @@ class Renamer(object):
         obs = logging.RenamerObserver()
         log.startLoggingWithObserver(obs.emit, setStdout=False)
 
-        self.history = History(
-            FilePath(os.path.expanduser('~/.renamer/history.xml')))
+        self.store = Store(os.path.expanduser('~/.renamer/renamer.axiom'))
+        # XXX: One day there might be more than one History item.
+        self.history = self.store.findOrCreate(History)
 
         self.options = Options()
         self.options.parseOptions()
@@ -121,7 +128,10 @@ class Renamer(object):
         return command
 
 
-    def performActions(self, dst, src):
+    def performRename(self, dst, src):
+        """
+        Perform a file rename.
+        """
         options = self.options
         if options['no-act']:
             logging.msg('Simulating: %s => %s' % (src.path, dst.path))
@@ -132,22 +142,34 @@ class Renamer(object):
             return
 
         if options['link-dst']:
-            self.changeset.do(SymlinkAction(src, dst), options)
+            self.changeset.do(
+                self.changeset.newAction(u'symlink', src, dst),
+                options)
         else:
-            self.changeset.do(MoveAction(src, dst), options)
+            self.changeset.do(
+                self.changeset.newAction(u'move', src, dst),
+                options)
             if options['link-src']:
-                self.changeset.do(SymlinkAction(dst, src), options)
+                self.changeset.do(
+                    self.changeset.newAction(u'symlink', dst, src),
+                    options)
 
 
     def runCommand(self, command):
+        """
+        Run a generic command.
+        """
         return defer.maybeDeferred(command.process, self)
 
 
     def runRenamingCommand(self, command):
+        """
+        Run a renaming command.
+        """
         def _processOne(src):
             self.currentArgument = src
             d = self.runCommand(command)
-            d.addCallback(self.performActions, src)
+            d.addCallback(self.performRename, src)
             return d
 
         self.changeset = self.history.newChangeset()
@@ -172,5 +194,8 @@ class Renamer(object):
 
 
     def exit(self, ignored):
+        """
+        Perform the exit routine.
+        """
         if not self.options['no-act']:
-            self.history.save()
+            self.history.pruneChangesets()

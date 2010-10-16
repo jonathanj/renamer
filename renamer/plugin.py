@@ -1,18 +1,11 @@
 import os
 import string
 import sys
-import time
-try:
-    from xml.etree import ElementTree as etree
-    etree # Ssssh, Pyflakes.
-except ImportError:
-    from elementtree import ElementTree as etree
 from zope.interface import noLongerProvides
 
 from twisted.plugin import getPlugins, IPlugin
 from twisted.internet import defer
 from twisted.python import usage
-from twisted.python.components import registerAdapter
 from twisted.python.filepath import FilePath
 
 from renamer import errors, logging, plugins
@@ -212,24 +205,25 @@ class RenamingActionMeta(InterfaceProvidingMetaclass):
 
 
 class RenamingAction(object):
+    """
+    An action that performs some renaming-related function and is undoable.
+
+    @see: L{renamer.irenamer.IRenamingAction}
+    """
     __metaclass__ = RenamingActionMeta
 
 
-    def __init__(self, src, dst, timestamp=None):
+    def __init__(self, src, dst):
         self.src = src
         self.dst = dst
-        if timestamp is None:
-            timestamp = time.time()
-        self.timestamp = timestamp
 
 
     def __repr__(self):
-        return '<%s name=%r src=%r dst=%r timestamp=%r>' % (
+        return '<%s name=%r src=%r dst=%r>' % (
             type(self).__name__,
             self.name,
             self.src,
-            self.dst,
-            self.timestamp)
+            self.dst)
 
 
     def makedirs(self, parent):
@@ -269,29 +263,12 @@ class RenamingAction(object):
 
     # IRenamingAction
 
-    def asHumanly(self):
-        return u'%s: %s => %s (%s)' % (
-            self.name.title(), self.src.path, self.dst.path,
-            time.asctime(time.localtime(self.timestamp)),)
+    def do(self, options):
+        raise NotImplementedError('Base classes must implement "do"')
 
 
-    @classmethod
-    def fromElement(cls, elem):
-        actionType = getActionByName(elem.get('name'))
-        return actionType(
-            src=FilePath(elem.get('src')),
-            dst=FilePath(elem.get('dst')),
-            timestamp=float(elem.get('timestamp')))
+    def undo(self, options):
+        raise NotImplementedError('Base classes must implement "undo"')
 
-
-    def asElement(self):
-        return etree.Element(
-            'action',
-            name=self.name,
-            src=self.src.path,
-            dst=self.dst.path,
-            timestamp=unicode(self.timestamp))
-
-
-registerAdapter(
-    RenamingAction.fromElement, etree._ElementInterface, IRenamingAction)
+noLongerProvides(RenamingAction, IPlugin)
+noLongerProvides(RenamingAction, IRenamingAction)

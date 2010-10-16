@@ -51,57 +51,29 @@ class IRenamingCommand(ICommand):
 
 class IRenamingAction(Interface):
     """
-    An action that performs some renaming-related action and is undoable.
+    An action that performs some renaming-related function and is undoable.
     """
-    def asHumanly():
-        """
-        Construct a human readable representation of the action.
-
-        @rtype: C{unicode}
-        """
+    src = Attribute("""
+    L{twisted.python.filepath.FilePath} to the source file.
+    """)
 
 
-    def do(src, dst, options):
+    dst = Attribute("""
+    L{twisted.python.filepath.FilePath} to the destination file.
+    """)
+
+
+    def do(options):
         """
         Perform the action.
 
-        @type  src: L{twisted.python.filepath.FilePath}
-        @param src: Source path.
-
-        @type  dst: L{twisted.python.filepath.FilePath}
-        @param src: Destination path.
-
         @type  options: L{twisted.python.usage.Options}
         """
 
 
-    def undo(src, dst, options):
+    def undo(options):
         """
         Perform the reverse action.
 
-        @type  src: L{twisted.python.filepath.FilePath}
-        @param src: Source path.
-
-        @type  dst: L{twisted.python.filepath.FilePath}
-        @param src: Destination path.
-
         @type  options: L{twisted.python.usage.Options}
-        """
-
-
-    def fromElement(elem):
-        """
-        Deserialize and create the action from an ElementTree element.
-
-        @type  elem: L{xml.etree.ElementTree.Element}
-
-        @rtype: L{renamer.irenamer.IRenamingAction}
-        """
-
-
-    def asElement():
-        """
-        Serialize an action to an ElementTree element.
-
-        @rtype: L{xml.etree.ElementTree.Element}
         """
