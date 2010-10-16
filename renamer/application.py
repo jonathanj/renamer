@@ -90,6 +90,9 @@ class Renamer(object):
 
     @type options: L{renamer.application.Options}
     @ivar options: Parsed command-line options.
+
+    @type command: L{renamer.irenamer.ICommand}
+    @ivar command: Renamer command being executed.
     """
     def __init__(self):
         obs = logging.RenamerObserver()
@@ -101,6 +104,21 @@ class Renamer(object):
         self.options = Options()
         self.options.parseOptions()
         obs.verbosity = self.options['verbosity']
+        self.command = self.getCommand()
+
+
+    def getCommand(self):
+        """
+        Get the L{twisted.python.usage.Options} command that was invoked.
+        """
+        command = getattr(self.options, 'subOptions', None)
+        if command is None:
+            raise usage.UsageError('At least one command must be specified')
+
+        while getattr(command, 'subOptions', None) is not None:
+            command = command.subOptions
+
+        return command
 
 
     def performActions(self, dst, src):
@@ -142,14 +160,13 @@ class Renamer(object):
 
 
     def run(self):
-        command = self.options.subOptions
-        while getattr(command, 'subOptions', None) is not None:
-            command = command.subOptions
-
-        if IRenamingCommand(type(command), None) is not None:
-            d = self.runRenamingCommand(command)
+        """
+        Begin processing commands.
+        """
+        if IRenamingCommand(type(self.command), None) is not None:
+            d = self.runRenamingCommand(self.command)
         else:
-            d = self.runCommand(command)
+            d = self.runCommand(self.command)
         d.addCallback(self.exit)
         return d
 
