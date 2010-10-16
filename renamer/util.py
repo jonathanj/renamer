@@ -1,5 +1,8 @@
 import errno
+import glob
+import itertools
 import os
+import sys
 from zope.interface import alsoProvides
 
 from twisted.internet.defer import DeferredList
@@ -74,3 +77,23 @@ class InterfaceProvidingMetaclass(type):
         newcls = type.__new__(cls, name, bases, attrs)
         alsoProvides(newcls, *cls.providedInterfaces)
         return newcls
+
+
+
+def globArguments(args, platform=sys.platform, exists=os.path.exists):
+    """
+    Glob arguments.
+    """
+    def _iglobWin32(pathname):
+        if not exists(pathname):
+            return glob.iglob(pathname)
+        return [pathname]
+
+    def _glob(globbing):
+        return itertools.chain.from_iterable(
+            itertools.imap(globbing, args))
+
+    globbing = glob.iglob
+    if platform == 'win32':
+        globbing = _iglobWin32
+    return _glob(globbing)

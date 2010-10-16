@@ -76,35 +76,11 @@ class Options(usage.Options, plugin._CommandMixin):
     opt_q = opt_quiet
 
 
-    def glob(self, args):
-        """
-        Glob arguments.
-        """
-        def _glob():
-            return (arg
-                for _arg in args
-                for arg in glob.glob(_arg))
-
-        def _globWin32():
-            for arg in args:
-                if not os.path.exists(arg):
-                    globbed = glob.glob(arg)
-                    if globbed:
-                        for a in globbed:
-                            yield a
-                        continue
-                yield arg
-
-        if sys.platform == 'win32':
-            return _globWin32()
-        return _glob()
-
-
     def parseArgs(self, *args):
         args = (self.decodeCommandLine(arg) for arg in args)
         if self['glob']:
-            args = self.glob(args)
-        self.args = [FilePath(arg) for arg in args]
+            args = util.globArguments(args)
+        self.args = (FilePath(arg) for arg in args)
 
 
 
