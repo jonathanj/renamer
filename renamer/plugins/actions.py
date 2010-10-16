@@ -43,7 +43,7 @@ class SymlinkAction(RenamingAction):
     def do(self, options):
         self.prepare(self.dst, options)
         logging.msg('Symlink: %s => %s' % (self.src.path, self.dst.path))
-        util.symlink(self.src, self.dst)
+        self.src.linkTo(self.dst)
 
 
     def undo(self, options):

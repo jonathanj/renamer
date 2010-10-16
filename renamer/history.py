@@ -102,10 +102,11 @@ class Changeset(Item):
 
 
     def __repr__(self):
-        return '<%s %d action(s) timestamp=%r>' % (
+        return '<%s %d action(s) created=%r modified=%r>' % (
             type(self).__name__,
             self.numActions,
-            self.timestamp)
+            self.created,
+            self.modified)
 
 
     def getActions(self):
@@ -137,12 +138,13 @@ class Changeset(Item):
             self.modified.asHumanly())
 
 
-    def newAction(self, name, src, dst):
+    def newAction(self, name, src, dst, verify=True):
         """
         Create a new L{renamer.history.Action}.
         """
-        # Check that "name" is in fact a valid action.
-        getActionByName(name)
+        if verify:
+            # Check that "name" is in fact a valid action.
+            getActionByName(name)
         return Action(
             store=self.store,
             name=name,
@@ -151,7 +153,7 @@ class Changeset(Item):
 
 
     @transacted
-    def do(self, action, options):
+    def do(self, action, options, _adapter=IRenamingAction):
         """
         Perform an action.
 
@@ -159,14 +161,14 @@ class Changeset(Item):
 
         @type  options: L{twisted.python.usage.Options}
         """
-        renamingAction = IRenamingAction(action)
+        renamingAction = _adapter(action)
         renamingAction.do(options)
         action.changeset = self
         self.modified = Time()
 
 
     @transacted
-    def undo(self, action, options):
+    def undo(self, action, options, _adapter=IRenamingAction):
         """
         Perform a reverse action.
 
@@ -174,7 +176,7 @@ class Changeset(Item):
 
         @type  options: L{twisted.python.usage.Options}
         """
-        renamingAction = IRenamingAction(action)
+        renamingAction = _adapter(action)
         renamingAction.undo(options)
         action.deleteFromStore()
         self.modified = Time()
@@ -211,6 +213,15 @@ class Action(Item):
     changeset = reference(doc="""
     Parent changeset Item.
     """, reftype=Changeset, whenDeleted=reference.CASCADE)
+
+
+    def __repr__(self):
+        return '<%s name=%r src=%r dst=%r created=%r>' % (
+            type(self).__name__,
+            self.name,
+            self.src,
+            self.dst,
+            self.created)
 
 
     def asHumanly(self):

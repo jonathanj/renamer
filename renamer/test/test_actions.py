@@ -1,9 +1,4 @@
 import time
-try:
-    from xml.etree import ElementTree as etree
-    etree # Ssssh, Pyflakes.
-except ImportError:
-    from elementtree import ElementTree as etree
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -32,7 +27,7 @@ class _ActionTestMixin(object):
         return self.path.child('src'), self.path.child('dst')
 
 
-    def createAction(self, src=None, dst=None, timestamp=None):
+    def createAction(self, src=None, dst=None):
         """
         Create an action from L{actionType}.
         """
@@ -40,37 +35,7 @@ class _ActionTestMixin(object):
             src = self.src
         if dst is None:
             dst = self.dst
-        return self.actionType(src, dst, timestamp)
-
-
-    def test_asElement(self):
-        """
-        An action can be accurately serialized to an element tree.
-        """
-        action = self.createAction()
-        e = action.asElement()
-        self.assertEquals(e.tag, 'action')
-        self.assertEquals(e.get('src'), self.src.path)
-        self.assertEquals(e.get('dst'), self.dst.path)
-        self.assertEquals(e.get('name'), action.name)
-
-
-    def test_fromElement(self):
-        """
-        An action can be accurately deserialized from an element tree.
-        """
-        timestamp = time.time()
-        e = etree.Element(
-            'action',
-            dict(name=self.actionType.name,
-                 src=self.src.path,
-                 dst=self.dst.path,
-                 timestamp=unicode(timestamp)))
-        action = self.actionType.fromElement(e)
-
-        self.assertEquals(action.src, self.src)
-        self.assertEquals(action.dst, self.dst)
-        self.assertEquals(action.timestamp, float(unicode(timestamp)))
+        return self.actionType(src, dst)
 
 
     def test_do(self):
