@@ -23,7 +23,7 @@ from renamer.util import InterfaceProvidingMetaclass
 
 def getCommands():
     """
-    Get all available standard commands.
+    Get all available L{renamer.irenamer.ICommand}s.
     """
     return getPlugins(ICommand, plugins)
 
@@ -31,7 +31,7 @@ def getCommands():
 
 def getRenamingCommands():
     """
-    Get all available renaming commands.
+    Get all available L{renamer.irenamer.IRenamingCommand}s.
     """
     return getPlugins(IRenamingCommand, plugins)
 
@@ -39,7 +39,7 @@ def getRenamingCommands():
 
 def getActions():
     """
-    Get all available Renamer actions.
+    Get all available L{renamer.irenamer.IRenamingAction}s.
     """
     return getPlugins(IRenamingAction, plugins)
 
@@ -47,14 +47,15 @@ def getActions():
 
 def getActionByName(name):
     """
-    Get an C{IRenamingAction} by name.
+    Get an L{renamer.irenamer.IRenamingAction} by name.
 
     @type name: C{unicode}
-    @param name: Name of the action to find.
+    @param name: Action name.
 
-    @raises NoSuchAction: If no action named C{name} could be found.
+    @raises L{renamer.errors.NoSuchAction}: If no action named C{name} could be
+        found.
 
-    @rtype: C{IRenamingAction}
+    @rtype: L{renamer.irenamer.IRenamingAction}
     """
     for action in getActions():
         if action.name == name:
@@ -76,6 +77,12 @@ class _CommandMixin(object):
         return unicode(cmdline, codec)
 
 
+    # ICommand
+
+    def process(self, renamer):
+        raise NotImplementedError('Commands must implement "process"')
+
+
 
 class CommandMeta(InterfaceProvidingMetaclass):
     providedInterfaces = [IPlugin, ICommand]
@@ -84,21 +91,20 @@ class CommandMeta(InterfaceProvidingMetaclass):
 
 class Command(_CommandMixin, usage.Options):
     """
-    Top-level Renamer command.
+    Top-level generic command.
 
     This command will display in the main help listing.
     """
     __metaclass__ = CommandMeta
 
-
-    def process(self, renamer):
-        pass
+noLongerProvides(Command, IPlugin)
+noLongerProvides(Command, ICommand)
 
 
 
 class SubCommand(_CommandMixin, usage.Options):
     """
-    Sub-level Renamer command.
+    Sub-level generic command.
     """
 
 
@@ -110,19 +116,42 @@ class RenamingCommandMeta(InterfaceProvidingMetaclass):
 
 class RenamingCommand(_CommandMixin, usage.Options):
     """
-    Top-level Renamer command.
+    Top-level renaming command.
 
-    These commands will display in the main help listing.
+    This command will display in the main help listing.
     """
     __metaclass__ = RenamingCommandMeta
 
+
     synopsis = '[options] <argument> [argument ...]'
+
+
+    # IRenamingCommand
 
     defaultPrefixTemplate = None
     defaultNameTemplate = None
 
 
     def buildDestination(self, mapping, options, src):
+        """
+        Build a destination path.
+
+        Substitution of C{mapping} into the C{'prefix'} command-line option
+        (defaulting to L{defaultPrefixTemplate}) and the C{'name'} command-line
+        option (defaulting to L{defaultNameTemplate}) is performed.
+
+        @type  mapping: C{dict} mapping C{str} to C{unicode}
+        @param mapping: Mapping of template variables, used for template
+            substitution.
+
+        @type  options: L{twisted.python.usage.Options}
+
+        @type  src: L{twisted.python.filepath.FilePath}
+        @param src: Source path.
+
+        @rtype:  L{twisted.python.filepath.FilePath}
+        @return: Destination path.
+        """
         prefixTemplate = options['prefix']
         if prefixTemplate is None:
             prefixTemplate = self.defaultPrefixTemplate
@@ -149,8 +178,13 @@ class RenamingCommand(_CommandMixin, usage.Options):
 
 
     def parseArgs(self, *args):
+        # Parse args like our parent (hopefully renamer.application.Options)
+        # which decodes and unglobs stuff.
+        # XXX: This is probably not great.
         self.parent.parseArgs(*args)
 
+
+    # ICommand
 
     def process(self, renamer):
         arg = renamer.currentArgument
@@ -159,6 +193,13 @@ class RenamingCommand(_CommandMixin, usage.Options):
         d = defer.maybeDeferred(self.processArgument, arg)
         d.addCallback(self.buildDestination, renamer.options, arg)
         return d
+
+
+    # IRenamingCommand
+
+    def processArgument(self, argument):
+        raise NotImplementedError(
+            'RenamingCommands must implement "processArgument"')
 
 noLongerProvides(RenamingCommand, IPlugin)
 noLongerProvides(RenamingCommand, IRenamingCommand)
@@ -214,7 +255,13 @@ class RenamingAction(object):
 
     def prepare(self, dst, options):
         """
-        Prepare an action to be performed.
+        Prepare for an action about to be performed.
+
+        The following preparations are done:
+
+            * Check that C{dst} does not already exist.
+
+            * Create any directory structure required for C{dst}.
         """
         self.checkExisting(dst)
         self.makedirs(dst.parent())

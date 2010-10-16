@@ -4,7 +4,7 @@ from zope.interface import Interface, Attribute
 
 class ICommand(Interface):
     """
-    Renamer command.
+    Generic Renamer command.
     """
     name = Attribute("""
     Command name.

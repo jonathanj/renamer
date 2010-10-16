@@ -131,9 +131,9 @@ class Undo(Command):
 
 
     longdesc = """
-    Every invocation of Renamer stores actions taken as a changeset in a
-    history file, allowing renamer to undo previously performed actions or
-    entire changesets.
+    Every invocation of Renamer stores the actions taken as a changeset, this
+    allows Renamer to undo entire changesets or previously performed individual
+    actions.
 
     Undo actions are communicated by identifiers, which can be discovered by
     consulting "undo list".

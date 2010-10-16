@@ -4,6 +4,13 @@ from renamer.plugin import RenamingAction
 
 
 class MoveAction(RenamingAction):
+    """
+    File move action.
+
+    If the source and destination are on different logical devices a
+    copy-delete will be used, unless the C{'one-file-system'} option is
+    specified.
+    """
     name = 'move'
 
 
@@ -25,6 +32,9 @@ class MoveAction(RenamingAction):
 
 
 class SymlinkAction(RenamingAction):
+    """
+    Symlink action.
+    """
     name = 'symlink'
 
 
