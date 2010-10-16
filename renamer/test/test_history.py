@@ -1,5 +1,3 @@
-import time
-
 from axiom.store import Store
 
 from twisted.python.filepath import FilePath

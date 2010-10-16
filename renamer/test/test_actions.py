@@ -1,5 +1,3 @@
-import time
-
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
