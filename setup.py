@@ -1,6 +1,16 @@
+import sys
 from epsilon.setuphelper import autosetup
 
 import renamer
+
+
+
+def scripts():
+    if sys.platform == 'win32':
+        return ['bin/rn.cmd']
+    return ['bin/rn']
+
+
 
 distobj = autosetup(
     name="Renamer",
@@ -15,5 +25,4 @@ distobj = autosetup(
         "Programming Language :: Python",
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities"],
-
-    scripts=['bin/rn'])
+    scripts=scripts())
