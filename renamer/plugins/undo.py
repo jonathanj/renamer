@@ -68,7 +68,7 @@ class UndoAction(SubCommand, _UndoMixin):
 
 
     def process(self, renamer):
-        action = self.getItem(renamer.store, self['action'], Action)
+        action = getItem(renamer.store, self['action'], Action)
         self.undoActions(
             renamer, action.changeset, [action])
 
@@ -91,7 +91,7 @@ class UndoChangeset(SubCommand, _UndoMixin):
 
 
     def process(self, renamer):
-        changeset = self.getItem(renamer.store, self['changeset'], Changeset)
+        changeset = getItem(renamer.store, self['changeset'], Changeset)
         logging.msg('Undoing: %s' % (changeset.asHumanly(),),
                     verbosity=3)
         actions = list(changeset.getActions())
