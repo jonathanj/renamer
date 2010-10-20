@@ -30,19 +30,19 @@ class _UndoMixin(object):
         ('ignore-errors', None, 'Do not stop the process when encountering OS errors')]
 
 
-    def undoActions(self, renamer, changeset, actions):
+    def undoActions(self, options, changeset, actions):
         """
         Undo specific actions from a changeset.
         """
         for action in actions:
             msg = 'Simulating undo'
-            if not renamer.options['no-act']:
+            if not options['no-act']:
                 msg = 'Undo'
 
             logging.msg('%s: %s' % (msg, action.asHumanly()), verbosity=3)
-            if not renamer.options['no-act']:
+            if not options['no-act']:
                 try:
-                    changeset.undo(action, renamer.options)
+                    changeset.undo(action, options)
                 except OSError, e:
                     if not self['ignore-errors']:
                         raise e

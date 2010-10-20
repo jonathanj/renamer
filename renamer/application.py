@@ -132,8 +132,7 @@ class Renamer(object):
         """
         Perform a file rename.
         """
-        options = self.options
-        if options['no-act']:
+        if self.options['no-act']:
             logging.msg('Simulating: %s => %s' % (src.path, dst.path))
             return
 
@@ -141,25 +140,31 @@ class Renamer(object):
             logging.msg('Skipping noop "%s"' % (src.path,), verbosity=2)
             return
 
-        if options['link-dst']:
+        if self.options['link-dst']:
             self.changeset.do(
                 self.changeset.newAction(u'symlink', src, dst),
-                options)
+                self.options)
         else:
             self.changeset.do(
                 self.changeset.newAction(u'move', src, dst),
-                options)
-            if options['link-src']:
+                self.options)
+            if self.options['link-src']:
                 self.changeset.do(
                     self.changeset.newAction(u'symlink', dst, src),
-                    options)
+                    self.options)
 
 
     def runCommand(self, command):
         """
         Run a generic command.
         """
-        return defer.maybeDeferred(command.process, self)
+        logging.msg(
+            'Using command "%s"' % (command.name,),
+            verbosity=4)
+        logging.msg(
+            'Command options: %r' % (command,),
+            verbosity=5)
+        return defer.maybeDeferred(command.process, self, self.options)
 
 
     def runRenamingCommand(self, command):
