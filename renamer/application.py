@@ -12,7 +12,7 @@ from twisted.internet import defer
 from twisted.python import usage, log
 from twisted.python.filepath import FilePath
 
-from renamer import logging, plugin, util
+from renamer import config, logging, plugin, util
 from renamer.irenamer import IRenamingCommand
 from renamer.history import History
 
@@ -28,6 +28,8 @@ class Options(usage.Options, plugin._CommandMixin):
 
 
     optParameters = [
+        ('config', 'c', '~/.renamer/renamer.conf',
+         'Configuration file path.'),
         ('name',   'e', None,
          'Formatted filename.', string.Template),
         ('prefix', 'p', None,
@@ -42,14 +44,19 @@ class Options(usage.Options, plugin._CommandMixin):
             plugin.getRenamingCommands(), plugin.getCommands())
         for plg in commands:
             try:
-                yield plg.name, None, plg, plg.description
+                yield (
+                    plg.name,
+                    None,
+                    config.defaultsFromConfigWrapper(self.config, plg),
+                    plg.description)
             except AttributeError:
                 raise RuntimeError('Malformed plugin: %r' % (plg,))
 
 
-    def __init__(self):
-        usage.Options.__init__(self)
+    def __init__(self, config):
+        super(Options, self).__init__()
         self['verbosity'] = 1
+        self.config = config
 
 
     @property
@@ -101,24 +108,53 @@ class Renamer(object):
     @ivar command: Renamer command being executed.
     """
     def __init__(self):
-        obs = logging.RenamerObserver()
-        log.startLoggingWithObserver(obs.emit, setStdout=False)
+        self._obs = logging.RenamerObserver()
+        log.startLoggingWithObserver(self._obs.emit, setStdout=False)
 
+        self.options = self.parseOptions()
         self.store = Store(os.path.expanduser('~/.renamer/renamer.axiom'))
         # XXX: One day there might be more than one History item.
         self.history = self.store.findOrCreate(History)
 
-        self.options = Options()
-        self.options.parseOptions()
-        obs.verbosity = self.options['verbosity']
-        self.command = self.getCommand()
+        self.args = getattr(self.options, 'args', [])
+        self.command = self.getCommand(self.options)
 
 
-    def getCommand(self):
+    def parseOptions(self):
+        """
+        Parse configuration file and command-line options.
+        """
+        _options = Options({})
+        _options.parseOptions()
+        self._obs.verbosity = _options['verbosity']
+
+        self._configFile = config.ConfigFile(
+            FilePath(os.path.expanduser(_options['config'])))
+        command = self.getCommand(_options)
+
+        options = Options(self._configFile)
+        # Apply global defaults.
+        options.update(self._configFile.get('renamer', options))
+        # Apply command-specific overrides for the global config.
+        options.update(
+            (k, v) for k, v in
+            self._configFile.get(command.name, options).iteritems()
+            if k in options)
+        # Command-line options trump the config file.
+        options.parseOptions()
+
+        logging.msg(
+            'Global options: %r' % (options,),
+            verbosity=5)
+
+        return options
+
+
+    def getCommand(self, options):
         """
         Get the L{twisted.python.usage.Options} command that was invoked.
         """
-        command = getattr(self.options, 'subOptions', None)
+        command = getattr(options, 'subOptions', None)
         if command is None:
             raise usage.UsageError('At least one command must be specified')
 
@@ -183,7 +219,7 @@ class Renamer(object):
                 self.options['concurrent'],),
             verbosity=3)
         return util.parallel(
-            self.options.args, self.options['concurrent'], _processOne)
+            self.args, self.options['concurrent'], _processOne)
 
 
     def run(self):
