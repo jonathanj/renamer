@@ -47,7 +47,7 @@ class Options(usage.Options, plugin._CommandMixin):
                 yield (
                     plg.name,
                     None,
-                    config.defaultsFromConfigWrapper(self.config, plg),
+                    config.defaultsFromConfigFactory(self.config, plg),
                     plg.description)
             except AttributeError:
                 raise RuntimeError('Malformed plugin: %r' % (plg,))
