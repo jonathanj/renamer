@@ -202,6 +202,16 @@ Arguments specified on the command line will override values in the
 configuration file.
 
 
+====
+BUGS
+====
+
+Please report any bugs to the `Renamer Launchpad project`_
+``<http://launchpad.net/renamer/>``.
+
+.. _Renamer Launchpad project: http://launchpad.net/renamer/
+
+
 =====
 FILES
 =====
