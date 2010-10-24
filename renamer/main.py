@@ -7,9 +7,11 @@ from renamer import application, logging
 
 
 
-def main():
-    status = 0
+status = 0
 
+
+
+def main():
     def logError(f):
         logging.err(f)
         global status
