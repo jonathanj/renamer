@@ -15,7 +15,7 @@ class RenamerCommandTests(TestCase):
         L{renamer.plugin.RenamerSubCommandMixin.decodeCommandLine} turns a byte
         string from the command line into a unicode string.
         """
-        decodeCommandLine = plugin.RenamerSubCommandMixin().decodeCommandLine
+        decodeCommandLine = plugin._CommandMixin().decodeCommandLine
 
         class MockFile(object):
             pass

@@ -1,23 +1,24 @@
 """
 Renamer application logic.
 """
-import glob
+import itertools
 import os
 import string
 import sys
 
-from twisted.internet import reactor, defer
-from twisted.python import usage
+from axiom.store import Store
+
+from twisted.internet import defer
+from twisted.python import usage, log
 from twisted.python.filepath import FilePath
 
 from renamer import logging, plugin, util
+from renamer.irenamer import IRenamingCommand
+from renamer.history import History
 
 
 
-class Options(usage.Options, plugin.RenamerSubCommandMixin):
-    synopsis = '[options] command argument [argument ...]'
-
-
+class Options(usage.Options, plugin._CommandMixin):
     optFlags = [
         ('glob',            'g',  'Expand arguments as UNIX-style globs.'),
         ('one-file-system', 'x',  "Don't cross filesystems."),
@@ -37,7 +38,9 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
 
     @property
     def subCommands(self):
-        for plg in plugin.getPlugins():
+        commands = itertools.chain(
+            plugin.getRenamingCommands(), plugin.getCommands())
+        for plg in commands:
             try:
                 yield plg.name, None, plg, plg.description
             except AttributeError:
@@ -47,6 +50,12 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
     def __init__(self):
         usage.Options.__init__(self)
         self['verbosity'] = 1
+
+
+    @property
+    def synopsis(self):
+        return 'Usage: %s [options]' % (
+            os.path.basename(sys.argv[0]),)
 
 
     def opt_verbose(self):
@@ -67,35 +76,11 @@ class Options(usage.Options, plugin.RenamerSubCommandMixin):
     opt_q = opt_quiet
 
 
-    def glob(self, args):
-        """
-        Glob arguments.
-        """
-        def _glob():
-            return (arg
-                for _arg in args
-                for arg in glob.glob(_arg))
-
-        def _globWin32():
-            for arg in args:
-                if not os.path.exists(arg):
-                    globbed = glob.glob(arg)
-                    if globbed:
-                        for a in globbed:
-                            yield a
-                        continue
-                yield arg
-
-        if sys.platform == 'win32':
-            return _globWin32()
-        return _glob()
-
-
     def parseArgs(self, *args):
         args = (self.decodeCommandLine(arg) for arg in args)
         if self['glob']:
-            args = self.glob(args)
-        self.args = [FilePath(arg) for arg in args]
+            args = util.globArguments(args)
+        self.args = (FilePath(arg) for arg in args)
 
 
 
@@ -103,96 +88,115 @@ class Renamer(object):
     """
     Renamer main logic.
 
+    @type store: L{axiom.store.Store}
+    @ivar store: Renamer database Store.
+
+    @type history: L{renamer.history.History}
+    @ivar history: Renamer history Item.
+
     @type options: L{renamer.application.Options}
     @ivar options: Parsed command-line options.
+
+    @type command: L{renamer.irenamer.ICommand}
+    @ivar command: Renamer command being executed.
     """
-    def __init__(self, options):
-        self.options = options
+    def __init__(self):
+        obs = logging.RenamerObserver()
+        log.startLoggingWithObserver(obs.emit, setStdout=False)
+
+        self.store = Store(os.path.expanduser('~/.renamer/renamer.axiom'))
+        # XXX: One day there might be more than one History item.
+        self.history = self.store.findOrCreate(History)
+
+        self.options = Options()
+        self.options.parseOptions()
+        obs.verbosity = self.options['verbosity']
+        self.command = self.getCommand()
 
 
-    def rename(self, dst, src):
+    def getCommand(self):
         """
-        Rename C{src} to {dst}.
+        Get the L{twisted.python.usage.Options} command that was invoked.
+        """
+        command = getattr(self.options, 'subOptions', None)
+        if command is None:
+            raise usage.UsageError('At least one command must be specified')
 
-        Perform symlinking if specified and create any required directory
-        hiearchy.
+        while getattr(command, 'subOptions', None) is not None:
+            command = command.subOptions
+
+        return command
+
+
+    def performRename(self, dst, src):
+        """
+        Perform a file rename.
         """
         options = self.options
-
-        if options['dry-run']:
-            logging.msg('Dry-run: %s => %s' % (src.path, dst.path))
+        if options['no-act']:
+            logging.msg('Simulating: %s => %s' % (src.path, dst.path))
             return
 
         if src == dst:
             logging.msg('Skipping noop "%s"' % (src.path,), verbosity=2)
             return
 
-        if dst.exists():
-            logging.msg('Refusing to clobber existing file "%s"' % (
-                dst.path,))
-            return
-
-        parent = dst.parent()
-        if not parent.exists():
-            logging.msg('Creating directory structure for "%s"' % (
-                parent.path,), verbosity=2)
-            parent.makedirs()
-
-        # Linking at the destination requires no moving.
         if options['link-dst']:
-            logging.msg('Symlink: %s => %s' % (src.path, dst.path))
-            src.linkTo(dst)
+            self.changeset.do(
+                self.changeset.newAction(u'symlink', src, dst),
+                options)
         else:
-            logging.msg('Move: %s => %s' % (src.path, dst.path))
-            util.rename(src, dst, oneFileSystem=options['one-file-system'])
+            self.changeset.do(
+                self.changeset.newAction(u'move', src, dst),
+                options)
             if options['link-src']:
-                logging.msg('Symlink: %s => %s' % (dst.path, src.path))
-                dst.linkTo(src)
+                self.changeset.do(
+                    self.changeset.newAction(u'symlink', dst, src),
+                    options)
 
 
-    def _processOne(self, src):
-        logging.msg('Processing "%s"' % (src.path,),
-                    verbosity=3)
-        command = self.options.command
-
-        def buildDestination(mapping):
-            prefixTemplate = self.options['prefix']
-            if prefixTemplate is None:
-                prefixTemplate = command.defaultPrefixTemplate
-
-            if prefixTemplate is not None:
-                prefix = os.path.expanduser(
-                    prefixTemplate.safe_substitute(mapping))
-            else:
-                prefixTemplate = string.Template(src.dirname())
-                prefix = prefixTemplate.template
-
-            ext = src.splitext()[-1]
-
-            nameTemplate = self.options['name']
-            if nameTemplate is None:
-                nameTemplate = command.defaultNameTemplate
-
-            filename = nameTemplate.safe_substitute(mapping)
-            logging.msg(
-                'Building filename: prefix=%r  name=%r  mapping=%r' % (
-                    prefixTemplate.template, nameTemplate.template, mapping),
-                verbosity=3)
-            return FilePath(prefix).child(filename).siblingExtension(ext)
-
-        d = defer.maybeDeferred(command.processArgument, src)
-        d.addCallback(buildDestination)
-        d.addCallback(self.rename, src)
-        return d
+    def runCommand(self, command):
+        """
+        Run a generic command.
+        """
+        return defer.maybeDeferred(command.process, self)
 
 
-    def run(self):
+    def runRenamingCommand(self, command):
+        """
+        Run a renaming command.
+        """
+        def _processOne(src):
+            self.currentArgument = src
+            d = self.runCommand(command)
+            d.addCallback(self.performRename, src)
+            return d
+
+        self.changeset = self.history.newChangeset()
         logging.msg(
             'Running, doing at most %d concurrent operations' % (
                 self.options['concurrent'],),
             verbosity=3)
-        d = util.parallel(
-            self.options.args, self.options['concurrent'], self._processOne)
-        d.addErrback(logging.err)
-        d.addBoth(lambda ignored: reactor.stop())
+        return util.parallel(
+            self.options.args, self.options['concurrent'], _processOne)
+
+
+    def run(self):
+        """
+        Begin processing commands.
+        """
+        if IRenamingCommand(type(self.command), None) is not None:
+            d = self.runRenamingCommand(self.command)
+        else:
+            d = self.runCommand(self.command)
+        d.addCallback(self.exit)
         return d
+
+
+    def exit(self, ignored):
+        """
+        Perform the exit routine.
+        """
+        # We can safely do this even with "no-act", since nothing was actioned
+        # and there is no point leaving orphaned Items around.
+        self.history.pruneChangesets()

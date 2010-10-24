@@ -13,12 +13,12 @@ except ImportError:
     pyparsing = None
 
 from renamer import logging
-from renamer.plugin import RenamerCommand
+from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
 
 
 
-class TVRage(RenamerCommand):
+class TVRage(RenamingCommand):
     name = 'tvrage'
 
 
@@ -40,7 +40,6 @@ class TVRage(RenamerCommand):
 
 
     def postOptions(self):
-        super(TVRage, self).postOptions()
         self.filenameParser = self._createParser()
 
 

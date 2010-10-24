@@ -8,12 +8,12 @@ except ImportError:
     mutagen = None
 
 from renamer import logging
-from renamer.plugin import RenamerCommand
+from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
 
 
 
-class Audio(RenamerCommand):
+class Audio(RenamingCommand):
     name = 'audio'
 
 
@@ -41,7 +41,6 @@ class Audio(RenamerCommand):
         if mutagen is None:
             raise PluginError(
                 'The "mutagen" package is required for this command')
-        super(Audio, self).postOptions()
         self._metadataCache = {}
 
 
@@ -76,6 +75,7 @@ class Audio(RenamerCommand):
                 pass
 
         return default
+
 
     def _saneTracknumber(self, tracknumber):
         if u'/' in tracknumber:

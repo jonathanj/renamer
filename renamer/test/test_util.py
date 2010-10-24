@@ -55,6 +55,59 @@ class UtilTests(TestCase):
 
 
 
+class GlobTests(TestCase):
+    """
+    Tests for L{renamer.util.globArguments}.
+    """
+    def setUp(self):
+        self.path = FilePath(self.mktemp())
+        self.path.makedirs()
+
+        filenames = ['a', 'ab', '.a', 'a[b]c']
+        for fn in filenames:
+            self.path.child(fn).touch()
+
+
+    def assertGlob(self, expected, paths, **kw):
+        """
+        Assert that L{renamer.util.globArguments}C{(paths, **kw)} returns a
+        result equal to C{expected}.
+        """
+        paths = [self.path.child(p).path for p in paths]
+        res = util.globArguments(paths, **kw)
+        self.assertEquals(
+            sorted(expected), sorted(FilePath(v).basename() for v in res))
+
+
+    def test_glob(self):
+        """
+        Non-Windows globbing will expand an iterable of glob arguments
+        according to regular globbing rules.
+        """
+        values = [
+            (['a*'], ['a', 'a[b]c', 'ab']),
+            (['a?'], ['ab'])]
+        for paths, expected in values:
+            self.assertGlob(expected, paths)
+
+        self.assertGlob(
+            [], ['a[b]c'],
+            platform='notwin32')
+
+
+    def test_globWin32(self):
+        """
+        On Windows globbing will only occur if the glob argument is not the
+        name of an existing file, in which case the existing file name will be
+        the only result of globbing that argument.
+        """
+        self.assertGlob(
+            ['a', 'a[b]c'],
+            ['[ab]', 'a[b]c'],
+            platform='win32')
+
+
+
 class IThing(Interface):
     """
     Silly test interface.
