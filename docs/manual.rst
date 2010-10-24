@@ -1,7 +1,7 @@
 .. index:: manual, rn
 
-Renamer manpage
-===============
+Renamer manual
+==============
 
 ========
 SYNOPSIS
