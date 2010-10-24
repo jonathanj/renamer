@@ -7,8 +7,8 @@ import renamer
 
 def scripts():
     if sys.platform == 'win32':
-        return ['bin/rn.cmd']
-    return ['bin/rn']
+        yield 'bin/rn.cmd'
+    yield 'bin/rn'
 
 
 
@@ -25,4 +25,4 @@ distobj = autosetup(
         "Programming Language :: Python",
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities"],
-    scripts=scripts())
+    scripts=list(scripts()))
