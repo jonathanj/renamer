@@ -55,7 +55,7 @@ class History(Item):
     @transacted
     def pruneActions(self):
         """
-        Remove any L{renamer.history.Action}s that to not have references to a
+        Remove any L{renamer.history.Action}s that do not have references to a
         L{renamer.history.Changeset}. These are actions most likely created and
         never used, so there is no need to store them.
         """

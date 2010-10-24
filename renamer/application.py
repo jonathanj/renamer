@@ -246,5 +246,6 @@ class Renamer(object):
         """
         Perform the exit routine.
         """
-        if not self.options['no-act']:
-            self.history.pruneChangesets()
+        # We can safely do this even with "no-act", since nothing was actioned
+        # and there is no point leaving orphaned Items around.
+        self.history.pruneChangesets()

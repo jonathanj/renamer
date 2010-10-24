@@ -90,8 +90,8 @@ def globArguments(args, platform=sys.platform, exists=os.path.exists):
         return [pathname]
 
     def _glob(globbing):
-        return itertools.chain.from_iterable(
-            itertools.imap(globbing, args))
+        return itertools.chain(
+            *itertools.imap(globbing, args))
 
     globbing = glob.iglob
     if platform == 'win32':
