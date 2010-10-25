@@ -43,7 +43,7 @@ class TVRage(RenamingCommand):
         self.filenameParser = self._createParser()
 
 
-    def _createParser(self):
+    def _createParser(self, strict=False):
         """
         Create the filename parser.
         """
@@ -71,12 +71,18 @@ class TVRage(RenamingCommand):
         short_season = digit.setResultsName('season')
         epnum = number.setResultsName('ep')
         exact_epnum = Word(nums, exact=2).setResultsName('ep')
-        episode = ( season + L('x') + epnum
-                  | L('[') + season + L('x') + epnum + L(']')
-                  | L('S') + season + L('E') + epnum
-                  | L('s') + season + L('e') + epnum
-                  | exact_season + exact_epnum
-                  | short_season + exact_epnum)
+
+        strict_episode = ( season + L('x') + epnum
+                         | L('[') + season + L('x') + epnum + L(']')
+                         | L('S') + season + L('E') + epnum
+                         | L('s') + season + L('e') + epnum)
+
+        if strict:
+            episode = strict_episode
+        else:
+            episode = ( strict_episode
+                      | exact_season + exact_epnum
+                      | short_season + exact_epnum)
 
         series_word = Word(alphanums)
         series = ZeroOrMore(
@@ -105,16 +111,19 @@ class TVRage(RenamingCommand):
         """
         Get TV episode information from a filename.
         """
-        try:
-            parse = self.filenameParser.parseString(filename)
-        except ParseException, e:
-            raise PluginError(
-                'No patterns could be found in "%s" (%r)' % (filename, e))
-        else:
-            parts = parse.series_name, parse.season, parse.ep, parse.ext
-            logging.msg('Found parts in "%s": %r' % (filename, parts),
-                        verbosity=4)
-            return parts
+        parsers = [self._createParser(strict=True),
+                   self._createParser(strict=False)]
+        for parser in parsers:
+            try:
+                parse = parser.parseString(filename)
+                parts = parse.series_name, parse.season, parse.ep, parse.ext
+                logging.msg('Found parts in "%s": %r' % (filename, parts),
+                            verbosity=4)
+                return parts
+            except ParseException, e:
+                pass
+        raise PluginError(
+            'No patterns could be found in %r (%r)' % (filename, e))
 
 
     def extractMetadata(self, pageData):
