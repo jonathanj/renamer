@@ -118,7 +118,7 @@ class TVRageTests(TestCase):
                 (series, season, episode))
 
 
-    def test_missingPyParsing(self):
+    def test_missingPyMeta(self):
         """
         Attempting to use the TV Rage plugin without PyMeta installed raises a
         L{renamer.errors.PluginError}.
