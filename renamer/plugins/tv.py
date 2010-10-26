@@ -156,8 +156,8 @@ class TVRage(RenamingCommand):
     # IRenamerCommand
 
     def processArgument(self, arg):
-        # XXX: why does our pattern care about the extension?
-        seriesName, season, episode, ext = self.extractParts(arg.basename())
+        seriesName, season, episode = self.extractParts(
+            arg.basename(), overrides=self)
         d = self.lookupMetadata(seriesName, season, episode)
         d.addCallback(self.buildMapping)
         return d
