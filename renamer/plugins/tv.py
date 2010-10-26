@@ -1,20 +1,72 @@
 import string
 import urllib
 
-from twisted.web.client import getPage
-
 try:
-    import pyparsing
-    from pyparsing import (
-        alphanums, nums, Word, Literal, ParseException, SkipTo, FollowedBy,
-        ZeroOrMore, Combine, NotAny, Optional, StringEnd)
-    pyparsing # Ssssh, Pyflakes.
+    import pymeta
+    from pymeta.grammar import OMeta
+    from pymeta.runtime import ParseError
+    pymeta # Ssssh, Pyflakes.
 except ImportError:
-    pyparsing = None
+    pymeta = None
+
+from twisted.web.client import getPage
 
 from renamer import logging
 from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
+
+
+
+filenameGrammar = """
+complete_strict    ::= <series_strict>:series <separator> <episode_strict>:episode
+                    => series, episode
+complete_lenient   ::= <series_lenient>:series <separator> <episode_lenient>:episode
+                    => series, episode
+partial_silly      ::= <series_silly>:series <separator> <episode_silly>:episode
+                    => series, episode
+only_episode_silly ::= <episode_silly>:episode
+                    => None, episode
+only_episode       ::= <episode_strict>:episode
+                    => None, episode
+only_series        ::= (<series_word>:word <separator> => word)+:words
+                    => ' '.join(words), [None, None]
+
+separator          ::= <hard_separator> | <soft_separator>
+soft_separator     ::= '.' | ' ' | '-' | '_'
+hard_separator     ::= ('_' '-' '_'
+                       |' ' '-' ' '
+                       |'.' '-' '.')
+
+series_strict      ::= (<series_word>:word <separator> ~(<episode_strict> <separator>) => word)*:words <series_word>:word
+                      => ' '.join(words + [word])
+series_lenient     ::= (<series_word>:word <separator> ~(<episode_lenient> <separator>) => word)*:words <series_word>:word
+                      => ' '.join(words + [word])
+series_silly       ::= (<series_word>:word <soft_separator> ~(<episode_silly> <separator>) => word)*:words <separator>
+                      => ' '.join(words)
+series_word        ::= (<letter> | <digit>)+:name => ''.join(name)
+
+episode_strict     ::= (<episode_x> | <episode_x2> | <episode_lettered>):ep
+                      => map(''.join, ep)
+episode_lenient    ::= (<episode_strict> | <episode_numbers>):ep
+                      => map(''.join, ep)
+episode_silly      ::= <digit>+:ep
+                      => map(''.join, [ep, ep])
+
+episode_lettered   ::= ('S' | 's') <digit>+:season ('E' | 'e') <digit>+:episode
+                      => season, episode
+episode_numbers    ::= <digit>:a <digit>:b <digit>:c <digit>?:d
+                      => ([a, b], [c, d]) if d else ([a], [b, c])
+episode_x          ::= <digit>+:season 'x' <digit>+:episode
+                      => season, episode
+episode_x2         ::= '[' <digit>+:season 'x' <digit>+:episode ']'
+                    => season, episode
+"""
+
+
+
+class FilenameGrammar(OMeta.makeGrammar(filenameGrammar, globals())):
+    pass
+
 
 
 
@@ -39,62 +91,16 @@ class TVRage(RenamingCommand):
         '$series [${season}x${padded_episode}] - $title')
 
 
+    optParameters = [
+        ('series',  None, None, 'Override series name.'),
+        ('season',  None, None, 'Override season number.', int),
+        ('episode', None, None, 'Override episode number.', int)]
+
+
     def postOptions(self):
-        self.filenameParser = self._createParser()
-
-
-    def _createParser(self, strict=False):
-        """
-        Create the filename parser.
-        """
-        if pyparsing is None:
+        if pymeta is None:
             raise PluginError(
-                'The "pyparsing" package is required for this command')
-
-        def L(value):
-            return Literal(value).suppress()
-
-        number = Word(nums)
-        digit = Word(nums, exact=1)
-
-        separator = ( Literal('_-_')
-                    | Literal(' - ')
-                    | Literal('.-.')
-                    | Literal('-')
-                    | Literal('.')
-                    | Literal('_')
-                    | Literal(' '))
-        separator = separator.suppress().leaveWhitespace()
-
-        season = number.setResultsName('season')
-        exact_season = Word(nums, exact=2).setResultsName('season')
-        short_season = digit.setResultsName('season')
-        epnum = number.setResultsName('ep')
-        exact_epnum = Word(nums, exact=2).setResultsName('ep')
-
-        strict_episode = ( season + L('x') + epnum
-                         | L('[') + season + L('x') + epnum + L(']')
-                         | L('S') + season + L('E') + epnum
-                         | L('s') + season + L('e') + epnum)
-
-        if strict:
-            episode = strict_episode
-        else:
-            episode = ( strict_episode
-                      | exact_season + exact_epnum
-                      | short_season + exact_epnum)
-
-        series_word = Word(alphanums)
-        series = ZeroOrMore(
-            series_word + separator + NotAny(episode + separator)) + series_word
-        series = Combine(series, joinString=' ').setResultsName('series_name')
-
-        extension = '.' + Word(alphanums).setResultsName('ext') + StringEnd()
-
-        title = SkipTo(FollowedBy(extension))
-
-        return (series + separator + episode + Optional(separator + title) +
-                extension)
+                'The "pymeta" package is required for this command')
 
 
     def buildMapping(self, (seriesName, season, episode, episodeName)):
@@ -107,23 +113,49 @@ class TVRage(RenamingCommand):
             title=episodeName)
 
 
-    def extractParts(self, filename):
+    def extractParts(self, filename, overrides=None):
         """
         Get TV episode information from a filename.
         """
-        parsers = [self._createParser(strict=True),
-                   self._createParser(strict=False)]
-        for parser in parsers:
+        if overrides is None:
+            overrides = {}
+
+        rules = ['complete_strict', 'complete_lenient']
+        # We can only try the partial rules if there are some overrides.
+        if filter(None, overrides.values()):
+            rules.extend([
+                'only_episode',
+                'partial_silly',
+                'only_series',
+                'only_episode_silly'])
+
+        for rule in rules:
+            g = FilenameGrammar(filename)
+            logging.msg('Trying grammar rule "%s"' % (rule,),
+                        verbosity=5)
             try:
-                parse = parser.parseString(filename)
-                parts = parse.series_name, parse.season, parse.ep, parse.ext
-                logging.msg('Found parts in "%s": %r' % (filename, parts),
-                            verbosity=4)
-                return parts
-            except ParseException, e:
-                pass
+                res, err = g.apply(rule)
+            except ParseError, e:
+                try:
+                    logging.msg('Parsing error:', verbosity=5)
+                    for line in (e.formatError(filename).strip()).splitlines():
+                        logging.msg(line, verbosity=5)
+                except:
+                    pass
+                continue
+            else:
+                series, (season, episode) = res
+                parts = (
+                    overrides.get('series') or series,
+                    overrides.get('season') or season,
+                    overrides.get('episode') or episode)
+                if None not in parts:
+                    logging.msg('Found parts in "%s": %r' % (filename, parts),
+                                verbosity=4)
+                    return parts
+
         raise PluginError(
-            'No patterns could be found in %r (%r)' % (filename, e))
+            'No patterns could be found in "%s"' % (filename))
 
 
     def extractMetadata(self, pageData):
