@@ -98,8 +98,19 @@ files.
 tvrage
 ------
 
+--series
+    Override the series name metadata.
+
+--season
+    Override the season number metadata.
+
+--episode
+    Override the episode number metadata.
+
 Use TV episode metadata from filenames (such as ``Lost S01E01.avi``) to consult
 the `TV Rage`_ database for detailed and accurate metadata used in renaming.
+
+.. _TV Rage: http://tvrage.com/
 
 Renamer is able to extract metadata from a wide variety of filename structures.
 Unfortunately, since useful metadata within the video container itself is
@@ -107,7 +118,19 @@ extremely rare, the only reliable way to extract information is from the
 filename, meaning that filenames should be as clear as possible and contain as
 much useful metadata as possible.
 
-.. _TV Rage: http://tvrage.com/
+In the event a filename does not contain enough information to determine a
+name, season and episode number you can use the override command-line options
+``--series``, ``--season`` and ``--episode``. Specifying any one of these will
+accomplish two things:
+
+1. Override any detected metadata in the filename for that particular
+   component, and;
+
+2. Relax the filename detection techniques so that less specific filenames can
+   match when there is enough combined metadata between filenames and
+   overrides. For example: A file named ``House - 1.avi`` combined with
+   ``--season=2`` means that there is enough metadata to look up information
+   for the *first* episode of the *second* season of the show "House".
 
 
 .. index:: audio
