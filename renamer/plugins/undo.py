@@ -27,7 +27,7 @@ def getItem(store, storeID, acceptableTypes):
 
 class _UndoMixin(object):
     optFlags = [
-        ('ignore-errors', None, 'Do not stop the process when encountering OS errors')]
+        ('ignore-errors', None, 'Do not stop the process when encountering OS errors.')]
 
 
     def undoActions(self, options, changeset, actions):

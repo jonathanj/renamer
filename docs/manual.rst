@@ -128,6 +128,10 @@ metadata formats are supported.
 undo
 ----
 
+--ignore-errors
+    Do not stop the process when encountering OS errors.
+
+
 Undo previous Renamer actions.
 
 The ``action`` subcommand will undo individual actions while the ``changeset``
