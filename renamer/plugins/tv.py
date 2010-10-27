@@ -16,6 +16,7 @@ from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
 try:
     from renamer._compiled_grammar.tv import Parser as FilenameGrammar
+    FilenameGrammar # Ssssh, Pyflakes.
 except ImportError:
     FilenameGrammar = None
 
