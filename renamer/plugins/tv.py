@@ -14,6 +14,10 @@ from twisted.web.client import getPage
 from renamer import logging
 from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
+try:
+    from renamer._compiled_grammar.tv import Parser as FilenameGrammar
+except ImportError:
+    FilenameGrammar = None
 
 
 
@@ -64,9 +68,9 @@ episode_x2         ::= '[' <digit>+:season 'x' <digit>+:episode ']'
 
 
 
-class FilenameGrammar(OMeta.makeGrammar(filenameGrammar, globals())):
-    pass
-
+if FilenameGrammar is None:
+    class FilenameGrammar(OMeta.makeGrammar(filenameGrammar, globals())):
+        pass
 
 
 
