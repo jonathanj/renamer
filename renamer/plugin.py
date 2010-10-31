@@ -72,7 +72,7 @@ class _CommandMixin(object):
 
     # ICommand
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         raise NotImplementedError('Commands must implement "process"')
 
 
@@ -137,7 +137,7 @@ class RenamingCommand(_CommandMixin, usage.Options):
         @param mapping: Mapping of template variables, used for template
             substitution.
 
-        @type  options: L{twisted.python.usage.Options}
+        @type  options: C{dict}
 
         @type  src: L{twisted.python.filepath.FilePath}
         @param src: Source path.
@@ -179,12 +179,12 @@ class RenamingCommand(_CommandMixin, usage.Options):
 
     # ICommand
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         arg = renamer.currentArgument
         logging.msg('Processing "%s"' % (arg.path,),
                     verbosity=3)
         d = defer.maybeDeferred(self.processArgument, arg)
-        d.addCallback(self.buildDestination, renamer.options, arg)
+        d.addCallback(self.buildDestination, options, arg)
         return d
 
 

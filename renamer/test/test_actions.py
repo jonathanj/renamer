@@ -14,7 +14,7 @@ class _ActionTestMixin(object):
     def setUp(self):
         self.path = FilePath(self.mktemp())
         self.path.makedirs()
-        self.options = Options()
+        self.options = Options(None)
         self.src, self.dst = self.createFiles()
 
 

@@ -97,3 +97,23 @@ def globArguments(args, platform=sys.platform, exists=os.path.exists):
     if platform == 'win32':
         globbing = _iglobWin32
     return _glob(globbing)
+
+
+
+def padIterable(iterable, padding, count):
+    """
+    Pad C{iterable}, with C{padding}, to C{count} elements.
+
+    Iterables containing more than C{count} elements are clipped to C{count}
+    elements.
+
+    @param iterable: The iterable to iterate.
+
+    @param padding: Padding object.
+
+    @param count: The padded length.
+
+    @return: An iterable.
+    """
+    return itertools.islice(
+        itertools.chain(iterable, itertools.repeat(padding)), count)

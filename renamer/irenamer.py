@@ -16,9 +16,13 @@ class ICommand(Interface):
     """)
 
 
-    def process(renamer):
+    def process(renamer, options):
         """
         Called once command line parsing is complete.
+
+        @type renamer: L{renamer.application.Renamer}
+
+        @type options: C{dict}
         """
 
 
@@ -67,7 +71,7 @@ class IRenamingAction(Interface):
         """
         Perform the action.
 
-        @type  options: L{twisted.python.usage.Options}
+        @type options: C{dict}
         """
 
 
@@ -75,5 +79,5 @@ class IRenamingAction(Interface):
         """
         Perform the reverse action.
 
-        @type  options: L{twisted.python.usage.Options}
+        @type options: C{dict}
         """

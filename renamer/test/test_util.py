@@ -140,3 +140,53 @@ class InterfaceProvidingMetaclassTests(TestCase):
         Interfaces are not provided by subclasses.
         """
         self.assertTrue(IThing.providedBy(Thing))
+
+
+
+class PadIterableTests(TestCase):
+    """
+    Tests for L{renamer.util.util.padIterable}.
+    """
+    def test_needsPadding(self):
+        """
+        Iterables that need padding are padded to the specified length with the
+        padding value.
+        """
+        padded = list(util.padIterable(xrange(3), -1, 5))
+        self.assertEquals(len(padded), 5)
+        self.assertEquals(padded, [0, 1, 2, -1, -1])
+
+
+    def test_exceedsPadding(self):
+        """
+        Iterables that exceed the padding amount are clipped to the specified
+        length.
+        """
+        padded = list(util.padIterable(xrange(10), -1, 5))
+        self.assertEquals(len(padded), 5)
+        self.assertEquals(padded, [0, 1, 2, 3, 4])
+
+
+    def test_negativeCount(self):
+        """
+        Negative padding counts raise C{ValueError}.
+        """
+        self.assertRaises(ValueError, util.padIterable, xrange(5), -1, -1)
+
+
+    def test_exact(self):
+        """
+        Iterables that are the same length as the padding are not padded.
+        """
+        padded = list(util.padIterable(xrange(5), -1, 5))
+        self.assertEquals(len(padded), 5)
+        self.assertEquals(padded, [0, 1, 2, 3, 4])
+
+
+    def test_empty(self):
+        """
+        Empty iterables are filled entirely with the padding value.
+        """
+        padded = list(util.padIterable([], -1, 5))
+        self.assertEquals(len(padded), 5)
+        self.assertEquals(padded, [-1, -1, -1, -1, -1])
