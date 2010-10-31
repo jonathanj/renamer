@@ -34,7 +34,7 @@ class Options(usage.Options, plugin._CommandMixin):
          'Formatted filename.', string.Template),
         ('prefix', 'p', None,
          'Formatted path to prefix to files before renaming.', string.Template),
-        ('concurrent', 'l',  10,
+        ('concurrency', 'l',  10,
          'Maximum number of asynchronous tasks to perform concurrently.', int)]
 
 
@@ -224,10 +224,10 @@ class Renamer(object):
         self.changeset = self.history.newChangeset()
         logging.msg(
             'Running, doing at most %d concurrent operations' % (
-                self.options['concurrent'],),
+                self.options['concurrency'],),
             verbosity=3)
         return util.parallel(
-            self.args, self.options['concurrent'], _processOne)
+            self.args, self.options['concurrency'], _processOne)
 
 
     def run(self):
