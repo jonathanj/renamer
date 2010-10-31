@@ -41,10 +41,10 @@ def transformersFromOptions(options):
 
 
 
-def defaultsFromConfigWrapper(config, commandClass):
+def defaultsFromConfigFactory(config, commandClass):
     """
-    Create an C{"__init__"} wrapper that will apply defaults from a config file
-    to an C{ICommand} provider.
+    Create a factory function that will create an C{ICommand} provider instance
+    and apply defaults from a config file.
 
     @type  config: L{renamer.config.ConfigFile}
     @param config: Config file to use defaults from.

@@ -59,16 +59,16 @@ class ConfigTests(TestCase):
         self.assertEquals(expected, res)
 
 
-    def test_defaultsFromConfigWrapper(self):
+    def test_defaultsFromConfigFactory(self):
         """
-        L{renamer.config.defaultsFromConfigWrapper} creates a wrapper function
+        L{renamer.config.defaultsFromConfigFactory} creates a wrapper function
         around a L{renamer.irenamer.ICommand} that, when called, instantiates
         the L{renamer.irenamer.ICommand} and sets default values from a config
         file from a section with a name matched
         L{renamer.irenamer.ICommand.name}. Options that are explicitly provided
         to the command trump values from the config file.
         """
-        wrapper = config.defaultsFromConfigWrapper(self.config, TestCommand)
+        wrapper = config.defaultsFromConfigFactory(self.config, TestCommand)
         cmd = wrapper()
         cmd.parseOptions([])
         self.assertEquals(cmd['aardvark'], u'hello')

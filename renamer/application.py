@@ -9,10 +9,10 @@ import sys
 from axiom.store import Store
 
 from twisted.internet import defer
-from twisted.python import usage, log
+from twisted.python import usage, log, versions
 from twisted.python.filepath import FilePath
 
-from renamer import config, logging, plugin, util
+from renamer import config, logging, plugin, util, version
 from renamer.irenamer import IRenamingCommand
 from renamer.history import History
 
@@ -35,7 +35,7 @@ class Options(usage.Options, plugin._CommandMixin):
         ('prefix', 'p', None,
          'Formatted path to prefix to files before renaming.', string.Template),
         ('concurrent', 'l',  10,
-         'Maximum number of concurrent tasks to perform at a time.', int)]
+         'Maximum number of asynchronous tasks to perform concurrently.', int)]
 
 
     @property
@@ -47,7 +47,7 @@ class Options(usage.Options, plugin._CommandMixin):
                 yield (
                     plg.name,
                     None,
-                    config.defaultsFromConfigWrapper(self.config, plg),
+                    config.defaultsFromConfigFactory(self.config, plg),
                     plg.description)
             except AttributeError:
                 raise RuntimeError('Malformed plugin: %r' % (plg,))
@@ -81,6 +81,14 @@ class Options(usage.Options, plugin._CommandMixin):
         self['verbosity'] = self['verbosity'] - 1
 
     opt_q = opt_quiet
+
+
+    def opt_version(self):
+        """
+        Display version information.
+        """
+        print versions.getVersionString(version)
+        sys.exit(0)
 
 
     def parseArgs(self, *args):

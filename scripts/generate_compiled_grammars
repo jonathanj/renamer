@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh -i
+
+set -e
+
+COMPILE_PATH=renamer/_compiled_grammar
+
+if [ -d $COMPILE_PATH ]; then
+    echo $COMPILE_PATH already exists
+    exit 1
+fi
+
+mkdir -p $COMPILE_PATH
+touch $COMPILE_PATH/__init__.py
+
+function namedAny() {
+    python -c "from twisted.python.reflect import namedAny; print namedAny('$1')"
+    return
+}
+
+typeset -A FQPNS
+FQPNS=(
+    tv renamer.plugins.tv.filenameGrammar)
+
+for key in ${(k)FQPNS}; do
+    in=$FQPNS[$key]
+    out=$COMPILE_PATH/${key}.py
+    echo Generating $out from $in
+    namedAny $in | generate_parser - - > $out
+done;
