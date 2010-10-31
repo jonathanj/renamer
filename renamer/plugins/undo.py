@@ -30,19 +30,19 @@ class _UndoMixin(object):
         ('ignore-errors', None, 'Do not stop the process when encountering OS errors')]
 
 
-    def undoActions(self, renamer, changeset, actions):
+    def undoActions(self, options, changeset, actions):
         """
         Undo specific actions from a changeset.
         """
         for action in actions:
             msg = 'Simulating undo'
-            if not renamer.options['no-act']:
+            if not options['no-act']:
                 msg = 'Undo'
 
             logging.msg('%s: %s' % (msg, action.asHumanly()), verbosity=3)
-            if not renamer.options['no-act']:
+            if not options['no-act']:
                 try:
-                    changeset.undo(action, renamer.options)
+                    changeset.undo(action, options)
                 except OSError, e:
                     if not self['ignore-errors']:
                         raise e
@@ -67,10 +67,9 @@ class UndoAction(SubCommand, _UndoMixin):
         self['action'] = action
 
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         action = getItem(renamer.store, self['action'], Action)
-        self.undoActions(
-            renamer, action.changeset, [action])
+        self.undoActions(options, action.changeset, [action])
 
 
 
@@ -90,13 +89,12 @@ class UndoChangeset(SubCommand, _UndoMixin):
         self['changeset'] = changeset
 
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         changeset = getItem(renamer.store, self['changeset'], Changeset)
         logging.msg('Undoing: %s' % (changeset.asHumanly(),),
                     verbosity=3)
         actions = list(changeset.getActions())
-        self.undoActions(
-            renamer, changeset, reversed(actions))
+        self.undoActions(options, changeset, reversed(actions))
 
 
 
@@ -109,7 +107,7 @@ class UndoList(SubCommand):
     """
 
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         changesets = list(renamer.history.getChangesets())
         for cs in changesets:
             print 'Changeset ID=%d:  %s' % (cs.storeID, cs.asHumanly())
@@ -139,9 +137,9 @@ class UndoForget(SubCommand):
         self['identifier'] = identifier
 
 
-    def process(self, renamer):
+    def process(self, renamer, options):
         item = getItem(renamer.store, self['identifier'], (Action, Changeset))
-        if not renamer.options['no-act']:
+        if not options['no-act']:
             logging.msg('Forgetting: %s' % (item.asHumanly(),), verbosity=2)
             item.deleteFromStore()
 

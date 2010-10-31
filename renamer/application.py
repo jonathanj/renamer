@@ -9,10 +9,10 @@ import sys
 from axiom.store import Store
 
 from twisted.internet import defer
-from twisted.python import usage, log
+from twisted.python import usage, log, versions
 from twisted.python.filepath import FilePath
 
-from renamer import logging, plugin, util
+from renamer import config, logging, plugin, util, version
 from renamer.irenamer import IRenamingCommand
 from renamer.history import History
 
@@ -28,12 +28,14 @@ class Options(usage.Options, plugin._CommandMixin):
 
 
     optParameters = [
+        ('config', 'c', '~/.renamer/renamer.conf',
+         'Configuration file path.'),
         ('name',   'e', None,
          'Formatted filename.', string.Template),
         ('prefix', 'p', None,
          'Formatted path to prefix to files before renaming.', string.Template),
-        ('concurrent', 'l',  10,
-         'Maximum number of concurrent tasks to perform at a time.', int)]
+        ('concurrency', 'l',  10,
+         'Maximum number of asynchronous tasks to perform concurrently.', int)]
 
 
     @property
@@ -42,14 +44,19 @@ class Options(usage.Options, plugin._CommandMixin):
             plugin.getRenamingCommands(), plugin.getCommands())
         for plg in commands:
             try:
-                yield plg.name, None, plg, plg.description
+                yield (
+                    plg.name,
+                    None,
+                    config.defaultsFromConfigFactory(self.config, plg),
+                    plg.description)
             except AttributeError:
                 raise RuntimeError('Malformed plugin: %r' % (plg,))
 
 
-    def __init__(self):
-        usage.Options.__init__(self)
+    def __init__(self, config):
+        super(Options, self).__init__()
         self['verbosity'] = 1
+        self.config = config
 
 
     @property
@@ -74,6 +81,14 @@ class Options(usage.Options, plugin._CommandMixin):
         self['verbosity'] = self['verbosity'] - 1
 
     opt_q = opt_quiet
+
+
+    def opt_version(self):
+        """
+        Display version information.
+        """
+        print versions.getVersionString(version)
+        sys.exit(0)
 
 
     def parseArgs(self, *args):
@@ -101,24 +116,53 @@ class Renamer(object):
     @ivar command: Renamer command being executed.
     """
     def __init__(self):
-        obs = logging.RenamerObserver()
-        log.startLoggingWithObserver(obs.emit, setStdout=False)
+        self._obs = logging.RenamerObserver()
+        log.startLoggingWithObserver(self._obs.emit, setStdout=False)
 
+        self.options = self.parseOptions()
         self.store = Store(os.path.expanduser('~/.renamer/renamer.axiom'))
         # XXX: One day there might be more than one History item.
         self.history = self.store.findOrCreate(History)
 
-        self.options = Options()
-        self.options.parseOptions()
-        obs.verbosity = self.options['verbosity']
-        self.command = self.getCommand()
+        self.args = getattr(self.options, 'args', [])
+        self.command = self.getCommand(self.options)
 
 
-    def getCommand(self):
+    def parseOptions(self):
+        """
+        Parse configuration file and command-line options.
+        """
+        _options = Options({})
+        _options.parseOptions()
+        self._obs.verbosity = _options['verbosity']
+
+        self._configFile = config.ConfigFile(
+            FilePath(os.path.expanduser(_options['config'])))
+        command = self.getCommand(_options)
+
+        options = Options(self._configFile)
+        # Apply global defaults.
+        options.update(self._configFile.get('renamer', options))
+        # Apply command-specific overrides for the global config.
+        options.update(
+            (k, v) for k, v in
+            self._configFile.get(command.name, options).iteritems()
+            if k in options)
+        # Command-line options trump the config file.
+        options.parseOptions()
+
+        logging.msg(
+            'Global options: %r' % (options,),
+            verbosity=5)
+
+        return options
+
+
+    def getCommand(self, options):
         """
         Get the L{twisted.python.usage.Options} command that was invoked.
         """
-        command = getattr(self.options, 'subOptions', None)
+        command = getattr(options, 'subOptions', None)
         if command is None:
             raise usage.UsageError('At least one command must be specified')
 
@@ -132,8 +176,7 @@ class Renamer(object):
         """
         Perform a file rename.
         """
-        options = self.options
-        if options['no-act']:
+        if self.options['no-act']:
             logging.msg('Simulating: %s => %s' % (src.path, dst.path))
             return
 
@@ -141,25 +184,31 @@ class Renamer(object):
             logging.msg('Skipping noop "%s"' % (src.path,), verbosity=2)
             return
 
-        if options['link-dst']:
+        if self.options['link-dst']:
             self.changeset.do(
                 self.changeset.newAction(u'symlink', src, dst),
-                options)
+                self.options)
         else:
             self.changeset.do(
                 self.changeset.newAction(u'move', src, dst),
-                options)
-            if options['link-src']:
+                self.options)
+            if self.options['link-src']:
                 self.changeset.do(
                     self.changeset.newAction(u'symlink', dst, src),
-                    options)
+                    self.options)
 
 
     def runCommand(self, command):
         """
         Run a generic command.
         """
-        return defer.maybeDeferred(command.process, self)
+        logging.msg(
+            'Using command "%s"' % (command.name,),
+            verbosity=4)
+        logging.msg(
+            'Command options: %r' % (command,),
+            verbosity=5)
+        return defer.maybeDeferred(command.process, self, self.options)
 
 
     def runRenamingCommand(self, command):
@@ -175,10 +224,10 @@ class Renamer(object):
         self.changeset = self.history.newChangeset()
         logging.msg(
             'Running, doing at most %d concurrent operations' % (
-                self.options['concurrent'],),
+                self.options['concurrency'],),
             verbosity=3)
         return util.parallel(
-            self.options.args, self.options['concurrent'], _processOne)
+            self.args, self.options['concurrency'], _processOne)
 
 
     def run(self):
