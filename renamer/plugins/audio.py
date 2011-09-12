@@ -30,11 +30,11 @@ class Audio(RenamingCommand):
 
 
     defaultPrefixTemplate = string.Template(
-        '${artist}/${album} (${date})')
+        u'${artist}/${album} (${date})')
 
 
     defaultNameTemplate = string.Template(
-        '${tracknumber}. ${title}')
+        u'${tracknumber}. ${title}')
 
 
     def postOptions(self):

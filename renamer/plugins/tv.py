@@ -9,6 +9,7 @@ try:
 except ImportError:
     pymeta = None
 
+from twisted.internet import reactor
 from twisted.web.client import Agent
 
 from renamer import logging
@@ -94,7 +95,7 @@ class TVRage(RenamingCommand):
 
 
     defaultNameTemplate = string.Template(
-        '$series [${season}x${padded_episode}] - $title')
+        u'$series [${season}x${padded_episode}] - $title')
 
 
     optParameters = [
@@ -107,7 +108,8 @@ class TVRage(RenamingCommand):
         if pymeta is None:
             raise PluginError(
                 'The "pymeta" package is required for this command')
-        from twisted.internet import reactor
+        if self['series'] is not None:
+            self['series'] = self.decodeCommandLine(self['series'])
         self.agent = Agent(reactor)
 
 
