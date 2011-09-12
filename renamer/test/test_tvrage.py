@@ -1,7 +1,6 @@
 import cgi
 import urllib
 
-from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
@@ -48,14 +47,6 @@ class TVRageTests(TestCase):
         self.plugin = tv.TVRage()
         self.plugin.parent = DummyPluginParent()
         self.plugin.postOptions()
-
-
-    def fetcher(self, url):
-        """
-        "Fetch" TV rage data.
-        """
-        data = self.dataPath.child('tvrage').open().read()
-        return succeed(data)
 
 
     def test_extractParts(self):
@@ -136,29 +127,22 @@ class TVRageTests(TestCase):
         L{renamer.plugins.tv.TVRage.extractMetadata} extracts structured TV
         episode information from a TV Rage response.
         """
-        d = self.plugin.lookupMetadata('Dexter', 1, 2, fetcher=self.fetcher)
-
-        @d.addCallback
-        def checkMetadata((series, season, episode, title)):
-            self.assertEquals(series, u'Dexter')
-            self.assertEquals(season, 1)
-            self.assertEquals(episode, 2)
-            self.assertEquals(title, u'Crocodile')
-
-        return d
+        lines = self.dataPath.child('tvrage').open()
+        series, season, episode, title = self.plugin.extractMetadata(lines)
+        self.assertEquals(series, u'Dexter')
+        self.assertEquals(season, 1)
+        self.assertEquals(episode, 2)
+        self.assertEquals(title, u'Crocodile')
 
 
-    def test_lookupMetadata(self):
+    def test_buildURL(self):
         """
-        L{renamer.plugins.tv.TVRage.lookupMetadata} requests structured TV
-        episode information from TV Rage.
+        L{renamer.plugins.tv.TVRage.buildURL} constructs a URL for the TV Rage
+        quickinfo API to a specific series, season and episode.
         """
-        def fetcher(url):
-            path, query = urllib.splitquery(url)
-            query = cgi.parse_qs(query)
-            self.assertEquals(
-                query,
-                dict(show=['Dexter'], ep=['1x02']))
-            return self.fetcher(url)
-
-        return self.plugin.lookupMetadata('Dexter', 1, 2, fetcher=fetcher)
+        url = self.plugin.buildURL('Dexter', 1, 2)
+        path, query = urllib.splitquery(url)
+        query = cgi.parse_qs(query)
+        self.assertEquals(
+            query,
+            dict(show=['Dexter'], ep=['1x02']))

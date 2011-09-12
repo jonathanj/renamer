@@ -9,11 +9,12 @@ try:
 except ImportError:
     pymeta = None
 
-from twisted.web.client import getPage
+from twisted.web.client import Agent
 
 from renamer import logging
 from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
+from renamer.util import deliverBody, BodyReceiver
 try:
     from renamer._compiled_grammar.tv import Parser as FilenameGrammar
     FilenameGrammar # Ssssh, Pyflakes.
@@ -69,7 +70,7 @@ episode_x2         ::= '[' <digit>+:season 'x' <digit>+:episode ']'
 
 
 
-if FilenameGrammar is None:
+if pymeta is not None and FilenameGrammar is None:
     class FilenameGrammar(OMeta.makeGrammar(filenameGrammar, globals())):
         pass
 
@@ -106,6 +107,8 @@ class TVRage(RenamingCommand):
         if pymeta is None:
             raise PluginError(
                 'The "pymeta" package is required for this command')
+        from twisted.internet import reactor
+        self.agent = Agent(reactor)
 
 
     def buildMapping(self, (seriesName, season, episode, episodeName)):
@@ -178,16 +181,28 @@ class TVRage(RenamingCommand):
         return series, season, episode, title
 
 
-    def lookupMetadata(self, seriesName, season, episode, fetcher=getPage):
+    def buildURL(self, seriesName, season, episode):
         """
-        Look up TV episode metadata on TV Rage.
+        Construct the TV Rage URL to the quickinfo page for the seriesName,
+        season and episode.
         """
         ep = '%dx%02d' % (int(season), int(episode))
         qs = urllib.urlencode({'show': seriesName, 'ep': ep})
-        url = 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
+        return 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
+
+
+    def lookupMetadata(self, seriesName, season, episode):
+        """
+        Look up TV episode metadata on TV Rage.
+        """
+        url = self.buildURL(seriesName, season, episode)
         logging.msg('Looking up TV Rage metadata at %s' % (url,),
                     verbosity=4)
-        return fetcher(url).addCallback(self.extractMetadata)
+
+        d = self.agent.request('GET', url)
+        d.addCallback(deliverBody, BodyReceiver)
+        d.addCallback(self.extractMetadata)
+        return d
 
 
     # IRenamerCommand
