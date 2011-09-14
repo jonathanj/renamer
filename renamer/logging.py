@@ -42,11 +42,10 @@ class RenamerObserver(object):
 
 
 def msg(message, **kw):
-    # If we put non-ASCII unicode in here, then log.msg just neglects to emit
-    # it for whatever bizarre reason.
+    # Passing unicode to log.msg is not supported, don't do it.
     if isinstance(message, unicode):
         codec = (
-            getattr(sys.stdin, 'encoding', None) or sys.getdefaultencoding())
+            getattr(sys.stdout, 'encoding', None) or sys.getdefaultencoding())
         message = message.encode(codec, 'replace')
     log.msg(message, source='renamer', **kw)
 

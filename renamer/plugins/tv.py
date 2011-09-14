@@ -81,12 +81,12 @@ class TVRage(RenamingCommand):
     name = 'tvrage'
 
 
-    description = 'Rename TV episodes with TV Rage metadata.'
+    description = 'Rename TV episodes with TVRage metadata.'
 
 
     longdesc = """
     Extract TV episode information from filenames and rename them based on the
-    correct information from TV Rage <http://tvrage.com/>.
+    correct information from TVRage <http://tvrage.com/>.
 
     Available placeholders for templates are:
 
@@ -170,7 +170,7 @@ class TVRage(RenamingCommand):
 
     def extractMetadata(self, pageData):
         """
-        Extract TV episode metadata from a TV Rage response.
+        Extract TV episode metadata from a TVRage response.
         """
         data = {}
         for line in pageData.splitlines():
@@ -185,7 +185,7 @@ class TVRage(RenamingCommand):
 
     def buildURL(self, seriesName, season, episode):
         """
-        Construct the TV Rage URL to the quickinfo page for the seriesName,
+        Construct the TVRage URL to the quickinfo page for the seriesName,
         season and episode.
         """
         ep = '%dx%02d' % (int(season), int(episode))
@@ -195,10 +195,10 @@ class TVRage(RenamingCommand):
 
     def lookupMetadata(self, seriesName, season, episode):
         """
-        Look up TV episode metadata on TV Rage.
+        Look up TV episode metadata on TVRage.
         """
         url = self.buildURL(seriesName, season, episode)
-        logging.msg('Looking up TV Rage metadata at %s' % (url,),
+        logging.msg('Looking up TVRage metadata at %s' % (url,),
                     verbosity=4)
 
         d = self.agent.request('GET', url)

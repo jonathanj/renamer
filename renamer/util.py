@@ -10,6 +10,8 @@ from zope.interface import alsoProvides
 from twisted.internet.defer import DeferredList, Deferred
 from twisted.internet.task import Cooperator
 from twisted.internet.protocol import Protocol
+from twisted.web.client import ResponseDone
+from twisted.web.http import PotentialDataLoss
 
 from renamer import errors
 
@@ -129,11 +131,14 @@ class BodyReceiver(Protocol):
 
     @type finished: C{Deferred<unicode>}
     @ivar finished: User-specified deferred that is fired with the decoded body
-        text when the body has been entirely delivered.
+        text, stored in L{_buffer}, when the body has been entirely delivered.
 
     @type encoding: C{str}
     @ivar encoding: Body text encoding, as specified in the I{'Content-Type'}
         header, defaults to C{'UTF-8'}.
+
+    @type _buffer: C{StringIO}
+    @ivar _buffer: Delivered body content buffer.
     """
     def __init__(self, response, finished):
         header, args = cgi.parse_header(
@@ -148,8 +153,11 @@ class BodyReceiver(Protocol):
 
 
     def connectionLost(self, reason):
-        data = self._buffer.getvalue().decode(self.encoding)
-        self.finished.callback(data)
+        if reason.check(PotentialDataLoss, ResponseDone) is None:
+            self.finished.errback(reason)
+        else:
+            data = self._buffer.getvalue().decode(self.encoding)
+            self.finished.callback(data)
 
 
 

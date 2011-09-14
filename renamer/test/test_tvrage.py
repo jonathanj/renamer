@@ -111,7 +111,7 @@ class TVRageTests(TestCase):
 
     def test_missingPyMeta(self):
         """
-        Attempting to use the TV Rage plugin without PyMeta installed raises a
+        Attempting to use the TVRage plugin without PyMeta installed raises a
         L{renamer.errors.PluginError}.
         """
         self.patch(tv, 'pymeta', None)
@@ -125,9 +125,9 @@ class TVRageTests(TestCase):
     def test_extractMetadata(self):
         """
         L{renamer.plugins.tv.TVRage.extractMetadata} extracts structured TV
-        episode information from a TV Rage response.
+        episode information from a TVRage response.
         """
-        lines = self.dataPath.child('tvrage').open()
+        lines = self.dataPath.child('tvrage').open().read()
         series, season, episode, title = self.plugin.extractMetadata(lines)
         self.assertEquals(series, u'Dexter')
         self.assertEquals(season, 1)
@@ -137,7 +137,7 @@ class TVRageTests(TestCase):
 
     def test_buildURL(self):
         """
-        L{renamer.plugins.tv.TVRage.buildURL} constructs a URL for the TV Rage
+        L{renamer.plugins.tv.TVRage.buildURL} constructs a URL for the TVRage
         quickinfo API to a specific series, season and episode.
         """
         url = self.plugin.buildURL('Dexter', 1, 2)
