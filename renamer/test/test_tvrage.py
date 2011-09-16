@@ -127,7 +127,7 @@ class TVRageTests(TestCase):
         L{renamer.plugins.tv.TVRage.extractMetadata} extracts structured TV
         episode information from a TVRage response.
         """
-        lines = self.dataPath.child('tvrage').open().read()
+        lines = self.dataPath.child('tvrage').getContent()
         series, season, episode, title = self.plugin.extractMetadata(lines)
         self.assertEquals(series, u'Dexter')
         self.assertEquals(season, 1)
