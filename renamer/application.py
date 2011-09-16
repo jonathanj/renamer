@@ -65,6 +65,13 @@ class Options(usage.Options, plugin._CommandMixin):
             os.path.basename(sys.argv[0]),)
 
 
+    def postOptions(self):
+        if self['name'] is not None:
+            self['name'] = self.decodeCommandLine(self['name'])
+        if self['prefix'] is not None:
+            self['prefix'] = self.decodeCommandLine(self['prefix'])
+
+
     def opt_verbose(self):
         """
         Increase output, use more times for greater effect.

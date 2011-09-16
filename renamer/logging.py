@@ -42,6 +42,11 @@ class RenamerObserver(object):
 
 
 def msg(message, **kw):
+    # Passing unicode to log.msg is not supported, don't do it.
+    if isinstance(message, unicode):
+        codec = (
+            getattr(sys.stdout, 'encoding', None) or sys.getdefaultencoding())
+        message = message.encode(codec, 'replace')
     log.msg(message, source='renamer', **kw)
 
 

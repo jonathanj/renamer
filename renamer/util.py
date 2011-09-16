@@ -1,12 +1,17 @@
+import cgi
 import errno
 import glob
 import itertools
 import os
 import sys
+from StringIO import StringIO
 from zope.interface import alsoProvides
 
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, Deferred
 from twisted.internet.task import Cooperator
+from twisted.internet.protocol import Protocol
+from twisted.web.client import ResponseDone
+from twisted.web.http import PotentialDataLoss
 
 from renamer import errors
 
@@ -117,3 +122,52 @@ def padIterable(iterable, padding, count):
     """
     return itertools.islice(
         itertools.chain(iterable, itertools.repeat(padding)), count)
+
+
+
+class BodyReceiver(Protocol):
+    """
+    Body receiver, suitable for use with L{IResponse.deliverBody}.
+
+    @type finished: C{Deferred<unicode>}
+    @ivar finished: User-specified deferred that is fired with the decoded body
+        text, stored in L{_buffer}, when the body has been entirely delivered.
+
+    @type encoding: C{str}
+    @ivar encoding: Body text encoding, as specified in the I{'Content-Type'}
+        header, defaults to C{'UTF-8'}.
+
+    @type _buffer: C{StringIO}
+    @ivar _buffer: Delivered body content buffer.
+    """
+    def __init__(self, response, finished):
+        header, args = cgi.parse_header(
+            response.headers.getRawHeaders('Content-Type', default=[''])[0])
+        self.encoding = args.get('charset', 'utf-8')
+        self.finished = finished
+        self._buffer = StringIO()
+
+
+    def dataReceived(self, data):
+        self._buffer.write(data)
+
+
+    def connectionLost(self, reason):
+        if reason.check(PotentialDataLoss, ResponseDone) is None:
+            self.finished.errback(reason)
+        else:
+            data = self._buffer.getvalue().decode(self.encoding)
+            self.finished.callback(data)
+
+
+
+def deliverBody(response, cls):
+    """
+    Invoke C{response.deliverBody} with C{cls(response, deferred)}.
+
+    @rtype: C{Deferred}
+    @return: A deferred that fires when the instance of C{cls} callbacks it.
+    """
+    finished = Deferred()
+    response.deliverBody(cls(response, finished))
+    return finished

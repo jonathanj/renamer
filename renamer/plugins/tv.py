@@ -9,11 +9,13 @@ try:
 except ImportError:
     pymeta = None
 
-from twisted.web.client import getPage
+from twisted.internet import reactor
+from twisted.web.client import Agent
 
 from renamer import logging
 from renamer.plugin import RenamingCommand
 from renamer.errors import PluginError
+from renamer.util import deliverBody, BodyReceiver
 try:
     from renamer._compiled_grammar.tv import Parser as FilenameGrammar
     FilenameGrammar # Ssssh, Pyflakes.
@@ -69,7 +71,7 @@ episode_x2         ::= '[' <digit>+:season 'x' <digit>+:episode ']'
 
 
 
-if FilenameGrammar is None:
+if pymeta is not None and FilenameGrammar is None:
     class FilenameGrammar(OMeta.makeGrammar(filenameGrammar, globals())):
         pass
 
@@ -79,12 +81,12 @@ class TVRage(RenamingCommand):
     name = 'tvrage'
 
 
-    description = 'Rename TV episodes with TV Rage metadata.'
+    description = 'Rename TV episodes with TVRage metadata.'
 
 
     longdesc = """
     Extract TV episode information from filenames and rename them based on the
-    correct information from TV Rage <http://tvrage.com/>.
+    correct information from TVRage <http://tvrage.com/>.
 
     Available placeholders for templates are:
 
@@ -93,7 +95,7 @@ class TVRage(RenamingCommand):
 
 
     defaultNameTemplate = string.Template(
-        '$series [${season}x${padded_episode}] - $title')
+        u'$series [${season}x${padded_episode}] - $title')
 
 
     optParameters = [
@@ -106,6 +108,9 @@ class TVRage(RenamingCommand):
         if pymeta is None:
             raise PluginError(
                 'The "pymeta" package is required for this command')
+        if self['series'] is not None:
+            self['series'] = self.decodeCommandLine(self['series'])
+        self.agent = Agent(reactor)
 
 
     def buildMapping(self, (seriesName, season, episode, episodeName)):
@@ -165,7 +170,7 @@ class TVRage(RenamingCommand):
 
     def extractMetadata(self, pageData):
         """
-        Extract TV episode metadata from a TV Rage response.
+        Extract TV episode metadata from a TVRage response.
         """
         data = {}
         for line in pageData.splitlines():
@@ -178,16 +183,28 @@ class TVRage(RenamingCommand):
         return series, season, episode, title
 
 
-    def lookupMetadata(self, seriesName, season, episode, fetcher=getPage):
+    def buildURL(self, seriesName, season, episode):
         """
-        Look up TV episode metadata on TV Rage.
+        Construct the TVRage URL to the quickinfo page for the seriesName,
+        season and episode.
         """
         ep = '%dx%02d' % (int(season), int(episode))
         qs = urllib.urlencode({'show': seriesName, 'ep': ep})
-        url = 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
-        logging.msg('Looking up TV Rage metadata at %s' % (url,),
+        return 'http://services.tvrage.com/tools/quickinfo.php?%s' % (qs,)
+
+
+    def lookupMetadata(self, seriesName, season, episode):
+        """
+        Look up TV episode metadata on TVRage.
+        """
+        url = self.buildURL(seriesName, season, episode)
+        logging.msg('Looking up TVRage metadata at %s' % (url,),
                     verbosity=4)
-        return fetcher(url).addCallback(self.extractMetadata)
+
+        d = self.agent.request('GET', url)
+        d.addCallback(deliverBody, BodyReceiver)
+        d.addCallback(self.extractMetadata)
+        return d
 
 
     # IRenamerCommand
