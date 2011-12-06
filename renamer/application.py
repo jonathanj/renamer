@@ -30,6 +30,10 @@ class Options(usage.Options, plugin._CommandMixin):
     optParameters = [
         ('config', 'c', '~/.renamer/renamer.conf',
          'Configuration file path.'),
+        ('name',   'e', None,
+         'Formatted filename.', None),
+        ('prefix', 'p', None,
+         'Formatted path to prefix to files before renaming.', None),
         ('concurrency', 'l',  10,
          'Maximum number of asynchronous tasks to perform concurrently.', int)]
 
@@ -62,22 +66,13 @@ class Options(usage.Options, plugin._CommandMixin):
             os.path.basename(sys.argv[0]),)
 
 
-    def opt_name(self, option):
-        """
-        Formatted filename.
-        """
-        self['name'] = string.Template(self.decodeCommandLine(option))
-
-    opt_e = opt_name
-
-
-    def opt_prefix(self, option):
-        """
-        Formatted path to prefix to files before renaming.
-        """
-        self['prefix'] = string.Template(self.decodeCommandLine(option))
-
-    opt_p = opt_prefix
+    def postOptions(self):
+        if self['name'] is not None:
+            self['name'] = string.Template(
+                self.decodeCommandLine(self['name']))
+        if self['prefix'] is not None:
+            self['prefix'] = string.Template(
+                self.decodeCommandLine(self['prefix']))
 
 
     def opt_verbose(self):
