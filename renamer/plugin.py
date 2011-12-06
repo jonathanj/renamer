@@ -66,6 +66,8 @@ class _CommandMixin(object):
         """
         Turn a byte string from the command line into a unicode string.
         """
+        if isinstance(cmdline, unicode):
+            return cmdline
         codec = getattr(sys.stdin, 'encoding', None) or sys.getdefaultencoding()
         return unicode(cmdline, codec)
 
