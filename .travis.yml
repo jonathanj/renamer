@@ -1,0 +1,30 @@
+language: python
+python: 2.7
+sudo: false
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+
+env:
+    - TOX_ENV=py27-twisted-132
+    - TOX_ENV=py27-twisted-153
+    - TOX_ENV=py27-twisted-trunk
+    - TOX_ENV=pyflakes
+
+install:
+  - pip install -U pip setuptools
+  - pip install coveralls coverage tox
+  - python setup.py --version
+  - pip install -e.[dev]
+
+script:
+  - coverage run --branch --source renamer $(type -p trial) renamer
+  - coverage report -m
+  - tox -e "${TOX_ENV}"
+
+after_success:
+  - coveralls
+
+notifications:
+  email: false
