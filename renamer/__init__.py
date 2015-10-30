@@ -1,3 +1,3 @@
-from renamer._version import version
+from renamer._version import __version__
 
-__all__ = ['version']
+__all__ = ['__version__']
